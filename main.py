@@ -22,8 +22,15 @@ app = FastAPI()
 
 # 設定路徑
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-DATA_DIR = os.path.join(BASE_DIR, "data")
+# 在 Vercel 中，只有 /tmp 資料夾是可寫入的
+IS_VERCEL = "VERCEL" in os.environ
+if IS_VERCEL:
+    UPLOAD_DIR = "/tmp/uploads"
+    DATA_DIR = "/tmp/data"
+else:
+    UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+    DATA_DIR = os.path.join(BASE_DIR, "data")
+
 DATA_FILE = os.path.join(DATA_DIR, "works.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "history.json")
 
