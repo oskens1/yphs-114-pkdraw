@@ -1,7 +1,6 @@
 import os
 import json
 import random
-import pandas as pd
 import shutil
 from fastapi import FastAPI, UploadFile, File, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
@@ -9,10 +8,15 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from typing import List, Optional
 
-from models import EloManager, WorkItem
-from pdf_utils import process_pdf
-from gsheet_manager import GSheetManager
-from cloudinary_manager import CloudinaryManager
+try:
+    from models import EloManager, WorkItem
+    from pdf_utils import process_pdf
+    from gsheet_manager import GSheetManager
+    from cloudinary_manager import CloudinaryManager
+except ImportError as e:
+    print(f"Import Error: {e}")
+
+app = FastAPI()
 
 app = FastAPI()
 
@@ -229,6 +233,7 @@ async def get_status():
 
 @app.get("/export")
 async def export_excel():
+    import pandas as pd
     data = []
     # 排名
     sorted_works = sorted(state.works, key=lambda x: x.elo, reverse=True)
