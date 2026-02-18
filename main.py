@@ -72,14 +72,20 @@ def load_data():
 
 @app.on_event("startup")
 async def startup_event():
-    load_data()
+    # 在 Vercel 中，我們不在啟動時加載數據，以避免啟動超時
+    # 改為在第一次請求時加載，或在 API 內部加載
+    pass
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
+    if not state.works:
+        load_data()
     return templates.TemplateResponse("index.html", {"request": request, "works": state.works})
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin(request: Request):
+    if not state.works:
+        load_data()
     return templates.TemplateResponse("admin.html", {"request": request, "works": state.works, "current_match": state.current_match})
 
 @app.post("/upload")

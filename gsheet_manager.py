@@ -28,7 +28,11 @@ class GSheetManager:
 
     def _get_works_sheet(self):
         client = self._get_client()
-        sh = client.open_by_key(self.spreadsheet_id)
+        try:
+            sh = client.open_by_key(self.spreadsheet_id)
+        except Exception as e:
+            raise ValueError(f"無法打開試算表，請確認 GOOGLE_SHEET_ID 是否正確以及服務帳號 Email 是否已加入共用。錯誤: {e}")
+            
         try:
             return sh.worksheet("Works")
         except gspread.exceptions.WorksheetNotFound:
@@ -39,7 +43,11 @@ class GSheetManager:
 
     def _get_history_sheet(self):
         client = self._get_client()
-        sh = client.open_by_key(self.spreadsheet_id)
+        try:
+            sh = client.open_by_key(self.spreadsheet_id)
+        except Exception as e:
+            raise ValueError(f"無法打開試算表，請確認 GOOGLE_SHEET_ID 是否正確。錯誤: {e}")
+            
         try:
             return sh.worksheet("History")
         except gspread.exceptions.WorksheetNotFound:
