@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老師控制台 - 兩兩比較投票系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .work-preview {
+            width: 100px;
+            height: auto;
+        }
+        .match-img {
+            max-width: 300px;
+            height: auto;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <h1 class="text-center mb-5">老師控制台</h1>
+
+        <div class="row mb-5">
+            <div class="col-md-12">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">上傳與設定</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">上傳學生作品 PDF</label>
+                            <input type="file" id="pdfFile" class="form-control" accept=".pdf">
+                        </div>
+                        <button class="btn btn-success" onclick="uploadPDF()">開始處理並匯入</button>
+                        <button class="btn btn-danger" onclick="resetSystem()">重設系統</button>
+                        <a href="/export" class="btn btn-info">匯出 Excel 成績</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-5">
+            <div class="col-md-12">
+                <div class="card shadow">
+                    <div class="card-header bg-warning">當前對戰</div>
+                    <div class="card-body text-center">
+                        <div id="current-match-display">
+                            <p>無進行中的對戰</p>
+                        </div>
+                        <hr>
+                        <button class="btn btn-primary btn-lg" onclick="nextRound()">下一輪 (隨機抽選)</button>
+                        <button class="btn btn-danger btn-lg" onclick="endRound()">結束投票</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card shadow">
+                    <div class="card-header bg-secondary text-white">作品清單 (Elo 排名)</div>
+                    <div class="card-body">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>預覽</th>
+                                    <th>隊伍</th>
+                                    <th>Elo</th>
+                                    <th>對戰數</th>
+                                    <th>勝場</th>
+                                </tr>
+                            </thead>
+                            <tbody id="works-list">
+                                <!-- 由 JS 動態填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function uploadPDF() {
+            const fileInput = document.getElementById('pdfFile');
+            if (!fileInput.files.length) return alert("請選擇檔案");
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            const response = await fetch('/upload', { method: 'POST', body: formData });
+            const result = await response.json();
+            alert("匯入成功，共有 " + result.count + " 件作品");
+            location.reload();
+        }
+
+        async function resetSystem() {
+            if (!confirm("確定要重設嗎？所有資料將消失")) return;
+            await fetch('/reset', { method: 'POST' });
+            location.reload();
+        }
+
+        async function nextRound() {
+            const response = await fetch('/next_round', { method: 'POST' });
+            const data = await response.json();
+            if (data.error) alert(data.error);
+            else updateStatus();
+        }
+
+        async function endRound() {
+            const response = await fetch('/end_round', { method: 'POST' });
+            const data = await response.json();
+            if (data.error) alert(data.error);
+            else {
+                alert("本輪結束！勝者：" + data.winner);
+                updateStatus();
+                refreshWorks();
+            }
+        }
+
+        async function updateStatus() {
+            const response = await fetch('/status');
+            const data = await response.json();
+            const display = document.getElementById('current-match-display');
+            
+            if (data.current_match) {
+                const m = data.current_match;
+                display.innerHTML = `
+                    <div class="row">
+                        <div class="col-6">
+                            <h5>A: ${m.A.id} (${m.A.elo})</h5>
+                            <img src="${m.A.image_url}" class="match-img border">
+                            <h3 class="mt-2 text-primary">得票: ${m.votes.A}</h3>
+                        </div>
+                        <div class="col-6">
+                            <h5>B: ${m.B.id} (${m.B.elo})</h5>
+                            <img src="${m.B.image_url}" class="match-img border">
+                            <h3 class="mt-2 text-secondary">得票: ${m.votes.B}</h3>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <span class="badge ${m.status==='voting'?'bg-success':'bg-secondary'}">${m.status}</span>
+                        ${m.winner ? '<h2 class="text-danger">WINNER: ' + m.winner + '</h2>' : ''}
+                    </div>
+                `;
+            } else {
+                display.innerHTML = '<p>無進行中的對戰</p>';
+            }
+        }
+
+        async function refreshWorks() {
+            const response = await fetch('/status'); // 這裡可以改成專門拿作品清單的 API，但 status 裡暫時沒放，先用 location.reload 或簡單處理
+            // 為了方便，直接 reload
+            location.reload();
+        }
+
+        // 初始化作品列表
+        const initialWorks = {% if works %}[
+            {% for w in works %}
+                {{ w.to_dict() | tojson }},
+            {% endfor %}
+        ]{% else %}[]{% endif %};
+        
+        const listBody = document.getElementById('works-list');
+        initialWorks.sort((a,b) => b.elo - a.elo).forEach(w => {
+            const row = `
+                <tr>
+                    <td>${w.id}</td>
+                    <td><img src="${w.image_url}" class="work-preview"></td>
+                    <td><span class="badge ${w.team==='red'?'bg-danger':'bg-secondary'}">${w.team}</span></td>
+                    <td><strong>${w.elo}</strong></td>
+                    <td>${w.match_count}</td>
+                    <td>${w.win_count}</td>
+                </tr>
+            `;
+            listBody.innerHTML += row;
+        });
+
+        setInterval(updateStatus, 3000);
+        updateStatus();
+    </script>
+</body>
+</html>

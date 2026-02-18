@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+jinja2
+python-multipart
+pandas
+openpyxl
+pymupdf
+gspread
+google-auth
+cloudinary
