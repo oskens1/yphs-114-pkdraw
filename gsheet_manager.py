@@ -139,3 +139,19 @@ class GSheetManager:
             entry["elo_changes"]["B"]["new"]
         ]
         ws.append_row(row)
+
+    def test_connection(self):
+        """強行測試連線並在 Works 表格第一列寫入測試字串"""
+        client = self._get_client()
+        sh = client.open_by_key(self.spreadsheet_id)
+        # 嘗試獲取或建立一個名為 "ConnectionTest" 的分頁，避免弄亂原本資料
+        try:
+            ws = sh.worksheet("ConnectionTest")
+        except:
+            ws = sh.add_worksheet(title="ConnectionTest", rows="10", cols="2")
+        
+        import datetime
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ws.update_acell("A1", "Connection Success!")
+        ws.update_acell("B1", f"Last tested: {now}")
+        return f"Successfully wrote to sheet at {now}"

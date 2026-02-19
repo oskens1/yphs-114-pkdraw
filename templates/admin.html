@@ -41,6 +41,7 @@
                         <button class="btn btn-success" onclick="uploadPDF()">開始處理並匯入</button>
                         <button class="btn btn-danger" onclick="resetSystem()">重設系統</button>
                         <a href="/export" class="btn btn-info">匯出 Excel 成績</a>
+                        <button class="btn btn-outline-secondary btn-sm float-end" onclick="testSheet()">測試 Sheet 連線</button>
                     </div>
                 </div>
             </div>
@@ -89,6 +90,26 @@
     </div>
 
     <script>
+        async function testSheet() {
+            const btn = event.target;
+            btn.disabled = true;
+            try {
+                const response = await fetch('/test_sheet');
+                const result = await response.json();
+                if (response.ok) {
+                    alert("連線成功！\n" + result.message);
+                } else {
+                    alert("連線失敗！\n錯誤原因：" + result.message + "\n\n詳細資訊已輸出至控制台");
+                    console.error("Detailed Error:", result.detail);
+                }
+            } catch (error) {
+                alert("網路錯誤或伺服器無回應");
+                console.error(error);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
         async function uploadPDF() {
             const fileInput = document.getElementById('pdfFile');
             const btn = event.target;

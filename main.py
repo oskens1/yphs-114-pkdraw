@@ -51,8 +51,8 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # 版本資訊
-APP_VERSION = "v1.1.1"
-UPDATE_LOG = "修改標題為「紅白對抗賽控制台」，並優化上傳按鈕的載入狀態與錯誤捕捉邏輯。"
+APP_VERSION = "v1.1.2"
+UPDATE_LOG = "建立 Google Sheets 診斷模式：加入 /test_sheet API 與連線測試按鈕。"
 
 # 全域狀態
 class State:
@@ -255,6 +255,17 @@ async def get_status():
         "current_match": state.current_match,
         "round_count": len(state.history)
     })
+
+@app.get("/test_sheet")
+async def test_sheet():
+    try:
+        msg = state.gsheet.test_connection()
+        return JSONResponse({"status": "ok", "message": msg})
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"Sheet Test Error:\n{error_detail}")
+        return JSONResponse({"status": "error", "message": str(e), "detail": error_detail}, status_code=500)
 
 @app.get("/export")
 async def export_excel():
