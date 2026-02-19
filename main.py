@@ -50,6 +50,10 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 # 修正 templates 目錄，確保在 Vercel 中能正確找到
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
+# 版本資訊
+APP_VERSION = "v1.1.0"
+UPDATE_LOG = "修復 Vercel 環境下的 PDF 圖片上傳路徑問題，並加入版本號顯示系統。"
+
 # 全域狀態
 class State:
     works: List[WorkItem] = []
@@ -97,7 +101,13 @@ async def index(request: Request):
 async def admin(request: Request):
     if not state.works:
         load_data()
-    return templates.TemplateResponse("admin.html", {"request": request, "works": state.works, "current_match": state.current_match})
+    return templates.TemplateResponse("admin.html", {
+        "request": request, 
+        "works": state.works, 
+        "current_match": state.current_match,
+        "version": APP_VERSION,
+        "update_log": UPDATE_LOG
+    })
 
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -115,11 +125,19 @@ async def upload_pdf(file: UploadFile = File(...)):
     
     # 上傳圖片到 Cloudinary 並更新 URL
     for work in temp_works:
-        # 從本地路徑獲取檔案名稱
-        local_img_path = os.path.join(BASE_DIR, work.image_url.lstrip("/"))
+        # 修正：直接從 extracted_images_dir 獲取圖片檔名
+        img_filename = os.path.basename(work.image_url)
+        local_img_path = os.path.join(extracted_images_dir, img_filename)
+        
         if os.path.exists(local_img_path):
+            print(f"Uploading {local_img_path} to Cloudinary...")
             cloudinary_url = state.cloudinary.upload_image(local_img_path, work.id)
-            work.image_url = cloudinary_url
+            if cloudinary_url:
+                work.image_url = cloudinary_url
+            else:
+                print(f"Failed to upload {work.id} to Cloudinary")
+        else:
+            print(f"File not found: {local_img_path}")
     
     state.works = temp_works
     save_data()
