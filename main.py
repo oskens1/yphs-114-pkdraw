@@ -51,8 +51,8 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # 版本資訊
-APP_VERSION = "v1.1.3"
-UPDATE_LOG = "Google Sheets 金鑰格式終極修復 (v2)：解決 Vercel 環境下的 PEM 解析與轉義問題。"
+APP_VERSION = "v1.1.4"
+UPDATE_LOG = "PDF 上傳診斷模式：加入 /upload 的詳細錯誤捕捉與 Traceback 回傳。"
 
 # 全域狀態
 class State:
@@ -111,37 +111,59 @@ async def admin(request: Request):
 
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
-    with open(file_path, "wb") as f:
-        f.write(await file.read())
-    
-    # 處理 PDF 轉圖片
-    extracted_images_dir = os.path.join(UPLOAD_DIR, "images")
-    if os.path.exists(extracted_images_dir):
-        shutil.rmtree(extracted_images_dir)
-    os.makedirs(extracted_images_dir, exist_ok=True)
-    
-    temp_works = process_pdf(file_path, extracted_images_dir)
-    
-    # 上傳圖片到 Cloudinary 並更新 URL
-    for work in temp_works:
-        # 修正：直接從 extracted_images_dir 獲取圖片檔名
-        img_filename = os.path.basename(work.image_url)
-        local_img_path = os.path.join(extracted_images_dir, img_filename)
+    try:
+        file_path = os.path.join(UPLOAD_DIR, file.filename)
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
         
-        if os.path.exists(local_img_path):
-            print(f"Uploading {local_img_path} to Cloudinary...")
-            cloudinary_url = state.cloudinary.upload_image(local_img_path, work.id)
-            if cloudinary_url:
-                work.image_url = cloudinary_url
+        # 處理 PDF 轉圖片
+        extracted_images_dir = os.path.join(UPLOAD_DIR, "images")
+        if os.path.exists(extracted_images_dir):
+            shutil.rmtree(extracted_images_dir)
+        os.makedirs(extracted_images_dir, exist_ok=True)
+        
+        # 1. 診斷點：PDF 處理
+        try:
+            temp_works = process_pdf(file_path, extracted_images_dir)
+        except Exception as e:
+            import traceback
+            raise ValueError(f"PDF 處理失敗 (process_pdf): {e}\n{traceback.format_exc()}")
+        
+        # 2. 診斷點：Cloudinary 上傳
+        for work in temp_works:
+            img_filename = os.path.basename(work.image_url)
+            local_img_path = os.path.join(extracted_images_dir, img_filename)
+            
+            if os.path.exists(local_img_path):
+                try:
+                    cloudinary_url = state.cloudinary.upload_image(local_img_path, work.id)
+                    if cloudinary_url:
+                        work.image_url = cloudinary_url
+                except Exception as e:
+                    print(f"Cloudinary upload error for {work.id}: {e}")
+                    # 這裡先不拋出異常，讓其他圖片嘗試上傳
             else:
-                print(f"Failed to upload {work.id} to Cloudinary")
-        else:
-            print(f"File not found: {local_img_path}")
-    
-    state.works = temp_works
-    save_data()
-    return JSONResponse({"status": "ok", "count": len(state.works)})
+                print(f"File not found: {local_img_path}")
+        
+        # 3. 診斷點：GSheet 保存
+        state.works = temp_works
+        try:
+            save_data()
+        except Exception as e:
+            import traceback
+            raise ValueError(f"GSheet 資料儲存失敗 (save_data): {e}\n{traceback.format_exc()}")
+            
+        return JSONResponse({"status": "ok", "count": len(state.works)})
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"Upload Error:\n{error_detail}")
+        return JSONResponse({
+            "status": "error", 
+            "message": str(e), 
+            "detail": error_detail
+        }, status_code=500)
 
 @app.post("/next_round")
 async def next_round():
