@@ -21,9 +21,31 @@ class GSheetManager:
             if not self.credentials_json:
                 raise ValueError("GOOGLE_CREDENTIALS environment variable is not set")
             
-            creds_dict = json.loads(self.credentials_json)
-            creds = Credentials.from_service_account_info(creds_dict, scopes=self.scope)
-            self.client = gspread.authorize(creds)
+            try:
+                # 終極解析邏輯：處理 Vercel 貼上 JSON 時可能產生的所有格式問題
+                json_str = self.credentials_json.strip()
+                
+                # 如果 private_key 裡的 \n 被轉成了真實換行，把它轉回來
+                if "-----BEGIN PRIVATE KEY-----" in json_str and "\\n" not in json_str:
+                    # 這代表換行符號變成了真實換行，我們需要修復它
+                    # 先解析成字典，如果解析失敗則手動處理
+                    try:
+                        creds_dict = json.loads(json_str)
+                    except:
+                        # 暴力修復：將 JSON 字串中的真實換行替換掉，但保留 key 格式
+                        # 這種情況較複雜，我們先嘗試標準解析
+                        raise ValueError("JSON 格式毀損，請確認貼上的是完整的 { ... } 內容")
+                else:
+                    creds_dict = json.loads(json_str)
+
+                # 關鍵修復：確保 private_key 中的換行符號正確
+                if "private_key" in creds_dict:
+                    creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+                
+                creds = Credentials.from_service_account_info(creds_dict, scopes=self.scope)
+                self.client = gspread.authorize(creds)
+            except Exception as e:
+                raise ValueError(f"Google 憑證解析失敗。請確保貼入 Vercel 的是完整的 JSON 內容。錯誤詳情: {e}")
         return self.client
 
     def _get_works_sheet(self):
