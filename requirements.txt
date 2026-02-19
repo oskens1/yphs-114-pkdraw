@@ -8,3 +8,4 @@ pymupdf
 gspread
 google-auth
 cloudinary
+Pillow

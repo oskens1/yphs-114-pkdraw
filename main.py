@@ -51,8 +51,8 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # 版本資訊
-APP_VERSION = "v1.1.6"
-UPDATE_LOG = "Reset 功能強化：重設系統時會同步清空 Google Sheets 內容。"
+APP_VERSION = "v1.1.7"
+UPDATE_LOG = "補齊 Pillow 依賴，並優化 Cloudinary 測試代碼的相容性問題。"
 
 # 全域狀態
 class State:
@@ -299,17 +299,15 @@ async def test_sheet():
 @app.get("/test_cloudinary")
 async def test_cloudinary():
     try:
-        # 建立一個極小的測試圖片
-        from PIL import Image
-        import io
-        img = Image.new('RGB', (10, 10), color = 'red')
-        img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='PNG')
-        img_byte_arr = img_byte_arr.getvalue()
-        
+        # 嘗試使用 Pillow，若失敗則用純文字模擬
         test_path = os.path.join(UPLOAD_DIR, "test_conn.png")
-        with open(test_path, "wb") as f:
-            f.write(img_byte_arr)
+        try:
+            from PIL import Image
+            img = Image.new('RGB', (10, 10), color = 'red')
+            img.save(test_path)
+        except Exception:
+            with open(test_path, "w") as f:
+                f.write("fallback test content")
             
         url = state.cloudinary.upload_image(test_path, "test_connection")
         return JSONResponse({"status": "ok", "url": url})
