@@ -51,8 +51,8 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # 版本資訊
-APP_VERSION = "v1.1.7"
-UPDATE_LOG = "補齊 Pillow 依賴，並優化 Cloudinary 測試代碼的相容性問題。"
+APP_VERSION = "v1.1.8"
+UPDATE_LOG = "Cloudinary 簽名校正版：環境變數自動去空格與字串清理，確保連線穩定。"
 
 # 全域狀態
 class State:

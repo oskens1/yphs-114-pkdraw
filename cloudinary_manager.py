@@ -5,9 +5,9 @@ from typing import List
 
 class CloudinaryManager:
     def __init__(self):
-        self.cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
-        self.api_key = os.getenv("CLOUDINARY_API_KEY")
-        self.api_secret = os.getenv("CLOUDINARY_API_SECRET")
+        self.cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
+        self.api_key = os.getenv("CLOUDINARY_API_KEY", "").strip()
+        self.api_secret = os.getenv("CLOUDINARY_API_SECRET", "").strip()
         
         print(f"DEBUG: Initializing Cloudinary with Cloud Name: {self.cloud_name}")
         
