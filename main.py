@@ -51,8 +51,8 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # 版本資訊
-APP_VERSION = "v1.1.2"
-UPDATE_LOG = "建立 Google Sheets 診斷模式：加入 /test_sheet API 與連線測試按鈕。"
+APP_VERSION = "v1.1.3"
+UPDATE_LOG = "Google Sheets 金鑰格式終極修復 (v2)：解決 Vercel 環境下的 PEM 解析與轉義問題。"
 
 # 全域狀態
 class State:

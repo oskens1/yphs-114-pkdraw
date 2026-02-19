@@ -22,30 +22,37 @@ class GSheetManager:
                 raise ValueError("GOOGLE_CREDENTIALS environment variable is not set")
             
             try:
-                # 終極解析邏輯：處理 Vercel 貼上 JSON 時可能產生的所有格式問題
+                # 終極解析邏輯 v2：應對 Vercel 的各種轉義地獄
                 json_str = self.credentials_json.strip()
                 
-                # 如果 private_key 裡的 \n 被轉成了真實換行，把它轉回來
-                if "-----BEGIN PRIVATE KEY-----" in json_str and "\\n" not in json_str:
-                    # 這代表換行符號變成了真實換行，我們需要修復它
-                    # 先解析成字典，如果解析失敗則手動處理
-                    try:
-                        creds_dict = json.loads(json_str)
-                    except:
-                        # 暴力修復：將 JSON 字串中的真實換行替換掉，但保留 key 格式
-                        # 這種情況較複雜，我們先嘗試標準解析
-                        raise ValueError("JSON 格式毀損，請確認貼上的是完整的 { ... } 內容")
-                else:
+                # 1. 嘗試基本解析
+                try:
                     creds_dict = json.loads(json_str)
+                except json.JSONDecodeError:
+                    # 如果基本解析失敗，可能是因為裡面有真實換行符號
+                    # 嘗試將真實換行替換回 \n 再解析
+                    fixed_json = json_str.replace('\n', '\\n').replace('\r', '')
+                    # 但這樣會把 JSON 結構也弄壞，所以更保險的做法是讓使用者重新貼上
+                    raise ValueError("JSON 格式不合法，請確認貼上的是 Vercel 後台的一整行完整 JSON (包含 {})")
 
-                # 關鍵修復：確保 private_key 中的換行符號正確
+                # 2. 針對 private_key 進行「暴力還原」
                 if "private_key" in creds_dict:
-                    creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+                    pk = creds_dict["private_key"]
+                    # 處理各種可能的轉義組合：\\n, \n, 以及真實的換行
+                    pk = pk.replace('\\\\n', '\n') # 處理雙重轉義
+                    pk = pk.replace('\\n', '\n')   # 處理單重轉義
+                    
+                    # 移除可能夾雜在金鑰中的任何非列印字元或多餘空格
+                    # 但要小心保留 PEM 的開頭與結尾標籤
+                    creds_dict["private_key"] = pk.strip()
                 
                 creds = Credentials.from_service_account_info(creds_dict, scopes=self.scope)
                 self.client = gspread.authorize(creds)
             except Exception as e:
-                raise ValueError(f"Google 憑證解析失敗。請確保貼入 Vercel 的是完整的 JSON 內容。錯誤詳情: {e}")
+                # 這裡的錯誤訊息會被前端捕捉並顯示
+                import traceback
+                print(f"DEBUG: GSheet Auth Error:\n{traceback.format_exc()}")
+                raise ValueError(f"Google 憑證解析失敗。錯誤詳情: {e}")
         return self.client
 
     def _get_works_sheet(self):
