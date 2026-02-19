@@ -9,6 +9,8 @@ class CloudinaryManager:
         self.api_key = os.getenv("CLOUDINARY_API_KEY")
         self.api_secret = os.getenv("CLOUDINARY_API_SECRET")
         
+        print(f"DEBUG: Initializing Cloudinary with Cloud Name: {self.cloud_name}")
+        
         if self.cloud_name and self.api_key and self.api_secret:
             cloudinary.config(
                 cloud_name=self.cloud_name,
@@ -16,6 +18,8 @@ class CloudinaryManager:
                 api_secret=self.api_secret,
                 secure=True
             )
+        else:
+            print("WARNING: Cloudinary environment variables are missing!")
 
     def upload_image(self, file_path: str, public_id: str) -> str:
         """上傳本地圖片到 Cloudinary 並返回網址"""

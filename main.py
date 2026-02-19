@@ -51,8 +51,8 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # 版本資訊
-APP_VERSION = "v1.1.4"
-UPDATE_LOG = "PDF 上傳診斷模式：加入 /upload 的詳細錯誤捕捉與 Traceback 回傳。"
+APP_VERSION = "v1.1.5"
+UPDATE_LOG = "Cloudinary 上傳強化：加入上傳校對機制，確保寫入 GSheet 的是雲端網址。"
 
 # 全域狀態
 class State:
@@ -130,6 +130,7 @@ async def upload_pdf(file: UploadFile = File(...)):
             raise ValueError(f"PDF 處理失敗 (process_pdf): {e}\n{traceback.format_exc()}")
         
         # 2. 診斷點：Cloudinary 上傳
+        uploaded_count = 0
         for work in temp_works:
             img_filename = os.path.basename(work.image_url)
             local_img_path = os.path.join(extracted_images_dir, img_filename)
@@ -139,11 +140,17 @@ async def upload_pdf(file: UploadFile = File(...)):
                     cloudinary_url = state.cloudinary.upload_image(local_img_path, work.id)
                     if cloudinary_url:
                         work.image_url = cloudinary_url
+                        uploaded_count += 1
+                        print(f"Successfully uploaded {work.id} to {cloudinary_url}")
+                    else:
+                        raise ValueError(f"Cloudinary return empty URL for {work.id}")
                 except Exception as e:
-                    print(f"Cloudinary upload error for {work.id}: {e}")
-                    # 這裡先不拋出異常，讓其他圖片嘗試上傳
+                    import traceback
+                    raise ValueError(f"Cloudinary 上傳失敗 (Work ID: {work.id}): {e}\n{traceback.format_exc()}")
             else:
-                print(f"File not found: {local_img_path}")
+                raise ValueError(f"找不到本地圖片檔案: {local_img_path}")
+        
+        print(f"Total uploaded to Cloudinary: {uploaded_count}/{len(temp_works)}")
         
         # 3. 診斷點：GSheet 保存
         state.works = temp_works
@@ -287,6 +294,28 @@ async def test_sheet():
         import traceback
         error_detail = traceback.format_exc()
         print(f"Sheet Test Error:\n{error_detail}")
+        return JSONResponse({"status": "error", "message": str(e), "detail": error_detail}, status_code=500)
+
+@app.get("/test_cloudinary")
+async def test_cloudinary():
+    try:
+        # 建立一個極小的測試圖片
+        from PIL import Image
+        import io
+        img = Image.new('RGB', (10, 10), color = 'red')
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+        
+        test_path = os.path.join(UPLOAD_DIR, "test_conn.png")
+        with open(test_path, "wb") as f:
+            f.write(img_byte_arr)
+            
+        url = state.cloudinary.upload_image(test_path, "test_connection")
+        return JSONResponse({"status": "ok", "url": url})
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
         return JSONResponse({"status": "error", "message": str(e), "detail": error_detail}, status_code=500)
 
 @app.get("/export")
