@@ -51,8 +51,8 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # 版本資訊
-APP_VERSION = "v1.1.0"
-UPDATE_LOG = "修復 Vercel 環境下的 PDF 圖片上傳路徑問題，並加入版本號顯示系統。"
+APP_VERSION = "v1.1.1"
+UPDATE_LOG = "修改標題為「紅白對抗賽控制台」，並優化上傳按鈕的載入狀態與錯誤捕捉邏輯。"
 
 # 全域狀態
 class State:
