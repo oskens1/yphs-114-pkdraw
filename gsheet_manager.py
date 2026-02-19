@@ -162,3 +162,20 @@ class GSheetManager:
         ws.update_acell("A1", "Connection Success!")
         ws.update_acell("B1", f"Last tested: {now}")
         return f"Successfully wrote to sheet at {now}"
+
+    def clear_all(self):
+        """完全清空 Works 和 History 分頁（保留標題列）"""
+        client = self._get_client()
+        sh = client.open_by_key(self.spreadsheet_id)
+        
+        try:
+            ws_works = sh.worksheet("Works")
+            ws_works.clear()
+            ws_works.append_row(["id", "image_url", "elo", "match_count", "win_count", "team"])
+        except: pass
+
+        try:
+            ws_history = sh.worksheet("History")
+            ws_history.clear()
+            ws_history.append_row(["round", "A_id", "B_id", "winner", "votes_A", "votes_B", "elo_A_old", "elo_A_new", "elo_B_old", "elo_B_new"])
+        except: pass

@@ -51,8 +51,8 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # 版本資訊
-APP_VERSION = "v1.1.5"
-UPDATE_LOG = "Cloudinary 上傳強化：加入上傳校對機制，確保寫入 GSheet 的是雲端網址。"
+APP_VERSION = "v1.1.6"
+UPDATE_LOG = "Reset 功能強化：重設系統時會同步清空 Google Sheets 內容。"
 
 # 全域狀態
 class State:
@@ -345,11 +345,19 @@ async def reset():
     state.current_match = None
     state.history = []
     state.last_picked_ids = []
+    
+    # 清除本地暫存
     if os.path.exists(DATA_FILE): os.remove(DATA_FILE)
     if os.path.exists(HISTORY_FILE): os.remove(HISTORY_FILE)
-    # 也清除圖片
     img_dir = os.path.join(UPLOAD_DIR, "images")
     if os.path.exists(img_dir):
         import shutil
         shutil.rmtree(img_dir)
+        
+    # 同步清除 Google Sheets
+    try:
+        state.gsheet.clear_all()
+    except Exception as e:
+        print(f"Error clearing GSheet during reset: {e}")
+        
     return JSONResponse({"status": "ok"})
