@@ -282,7 +282,8 @@ async def end_round():
 async def get_status():
     return JSONResponse({
         "current_match": state.current_match,
-        "round_count": len(state.history)
+        "round_count": len(state.history),
+        "works": [w.to_dict() for w in state.works]
     })
 
 @app.get("/test_sheet")

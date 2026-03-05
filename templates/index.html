@@ -132,10 +132,17 @@
                         currentMatchId = matchId;
                         hasVoted = false;
                         showMatch(data.current_match);
+                    } else if (hasVoted) {
+                        // 如果已經投過票，確保狀態顯示正確
+                        document.getElementById('vote-status').style.display = 'block';
+                        document.getElementById('btnA').disabled = true;
+                        document.getElementById('btnB').disabled = true;
                     }
                 } else {
-                    currentMatchId = null;
-                    showWaiting();
+                    if (currentMatchId !== null) {
+                        currentMatchId = null;
+                        showWaiting();
+                    }
                 }
             } catch (e) {
                 console.error("Error checking status", e);

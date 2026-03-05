@@ -219,7 +219,7 @@
                 
                 const result = await response.json();
                 alert("匯入成功，共有 " + result.count + " 件作品");
-                location.reload();
+                updateStatus();
             } catch (error) {
                 console.error("Upload error:", error);
                 alert("上傳失敗: " + error.message);
@@ -232,7 +232,7 @@
         async function resetSystem() {
             if (!confirm("確定要重設嗎？所有資料將消失")) return;
             await fetch('/reset', { method: 'POST' });
-            location.reload();
+            updateStatus();
         }
 
         async function nextRound() {
@@ -249,15 +249,33 @@
             else {
                 alert("本輪結束！勝者：" + data.winner);
                 updateStatus();
-                refreshWorks();
             }
+        }
+
+        function renderWorksList(works) {
+            const listBody = document.getElementById('works-list');
+            listBody.innerHTML = '';
+            works.sort((a,b) => b.elo - a.elo).forEach(w => {
+                const row = `
+                    <tr>
+                        <td>${w.id}</td>
+                        <td><img src="${w.image_url}" class="work-preview"></td>
+                        <td><span class="badge ${w.team==='red'?'bg-danger':'bg-secondary'}">${w.team}</span></td>
+                        <td><strong>${w.elo}</strong></td>
+                        <td>${w.match_count}</td>
+                        <td>${w.win_count}</td>
+                    </tr>
+                `;
+                listBody.innerHTML += row;
+            });
         }
 
         async function updateStatus() {
             const response = await fetch('/status');
             const data = await response.json();
-            const display = document.getElementById('current-match-display');
             
+            // 更新對戰區域
+            const display = document.getElementById('current-match-display');
             if (data.current_match) {
                 const m = data.current_match;
                 display.innerHTML = `
@@ -281,12 +299,11 @@
             } else {
                 display.innerHTML = '<p>無進行中的對戰</p>';
             }
-        }
 
-        async function refreshWorks() {
-            const response = await fetch('/status'); // 這裡可以改成專門拿作品清單的 API，但 status 裡暫時沒放，先用 location.reload 或簡單處理
-            // 為了方便，直接 reload
-            location.reload();
+            // 更新作品清單
+            if (data.works) {
+                renderWorksList(data.works);
+            }
         }
 
         // 初始化作品列表
@@ -296,20 +313,7 @@
             {% endfor %}
         ]{% else %}[]{% endif %};
         
-        const listBody = document.getElementById('works-list');
-        initialWorks.sort((a,b) => b.elo - a.elo).forEach(w => {
-            const row = `
-                <tr>
-                    <td>${w.id}</td>
-                    <td><img src="${w.image_url}" class="work-preview"></td>
-                    <td><span class="badge ${w.team==='red'?'bg-danger':'bg-secondary'}">${w.team}</span></td>
-                    <td><strong>${w.elo}</strong></td>
-                    <td>${w.match_count}</td>
-                    <td>${w.win_count}</td>
-                </tr>
-            `;
-            listBody.innerHTML += row;
-        });
+        renderWorksList(initialWorks);
 
         setInterval(updateStatus, 3000);
         updateStatus();
