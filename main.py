@@ -60,6 +60,7 @@ class State:
     current_match: Optional[dict] = None
     history: List[dict] = []
     last_picked_ids: List[str] = [] # 避免短時間重複出現
+    debug_mode: bool = False
     
     gsheet = GSheetManager()
     cloudinary = CloudinaryManager()
@@ -321,13 +322,19 @@ async def get_status():
             "current_match": state.current_match,
             "round_count": len(state.history),
             "works": [w.to_dict() for w in state.works] if state.works else [],
-            "sync_ok": sync_ok
+            "sync_ok": sync_ok,
+            "debug_mode": state.debug_mode
         },
         headers={
             "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
             "Pragma": "no-cache"
         }
     )
+
+@app.post("/toggle_debug")
+async def toggle_debug():
+    state.debug_mode = not state.debug_mode
+    return JSONResponse({"debug_mode": state.debug_mode})
 
 @app.get("/test_sheet")
 async def test_sheet():

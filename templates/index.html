@@ -119,6 +119,7 @@
 
     <script>
         let currentMatchId = null;
+        let debugMode = false;
 
         function getHasVoted(matchId) {
             return localStorage.getItem('voted_' + matchId) === 'true';
@@ -133,6 +134,8 @@
                 const response = await fetch('/status');
                 const data = await response.json();
                 
+                debugMode = data.debug_mode;
+
                 if (data.current_match && data.current_match.status === 'voting') {
                     const matchId = data.current_match.A.id + '_' + data.current_match.B.id;
                     if (matchId !== currentMatchId) {
@@ -194,7 +197,8 @@
         }
 
         async function vote(choice) {
-            if (!currentMatchId || getHasVoted(currentMatchId)) return;
+            if (!currentMatchId) return;
+            if (!debugMode && getHasVoted(currentMatchId)) return;
 
             const formData = new FormData();
             formData.append('choice', choice);
