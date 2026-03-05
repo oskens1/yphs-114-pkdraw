@@ -271,38 +271,55 @@
         }
 
         async function updateStatus() {
-            const response = await fetch('/status');
-            const data = await response.json();
-            
-            // 更新對戰區域
-            const display = document.getElementById('current-match-display');
-            if (data.current_match) {
-                const m = data.current_match;
-                display.innerHTML = `
-                    <div class="row">
-                        <div class="col-6">
-                            <h5>A: ${m.A.id} (${m.A.elo})</h5>
-                            <img src="${m.A.image_url}" class="match-img border">
-                            <h3 class="mt-2 text-primary">得票: ${m.votes.A}</h3>
-                        </div>
-                        <div class="col-6">
-                            <h5>B: ${m.B.id} (${m.B.elo})</h5>
-                            <img src="${m.B.image_url}" class="match-img border">
-                            <h3 class="mt-2 text-secondary">得票: ${m.votes.B}</h3>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <span class="badge ${m.status==='voting'?'bg-success':'bg-secondary'}">${m.status}</span>
-                        ${m.winner ? '<h2 class="text-danger">WINNER: ' + m.winner + '</h2>' : ''}
-                    </div>
-                `;
-            } else {
-                display.innerHTML = '<p>無進行中的對戰</p>';
-            }
+            try {
+                const response = await fetch('/status');
+                const data = await response.json();
+                
+                // 更新同步狀態顯示
+                const versionBadge = document.querySelector('.badge.bg-dark');
+                if (data.sync_ok) {
+                    versionBadge.className = 'badge bg-success';
+                    versionBadge.innerHTML = '已連線 (GSheet 同步中)';
+                } else {
+                    versionBadge.className = 'badge bg-danger';
+                    versionBadge.innerHTML = '連線異常 (嘗試重新同步...)';
+                }
 
-            // 更新作品清單
-            if (data.works) {
-                renderWorksList(data.works);
+                // 更新對戰區域
+                const display = document.getElementById('current-match-display');
+                if (data.current_match) {
+                    const m = data.current_match;
+                    display.innerHTML = `
+                        <div class="row">
+                            <div class="col-6">
+                                <h5>A: ${m.A.id} (${m.A.elo})</h5>
+                                <img src="${m.A.image_url}" class="match-img border">
+                                <h3 class="mt-2 text-primary">得票: ${m.votes.A}</h3>
+                            </div>
+                            <div class="col-6">
+                                <h5>B: ${m.B.id} (${m.B.elo})</h5>
+                                <img src="${m.B.image_url}" class="match-img border">
+                                <h3 class="mt-2 text-secondary">得票: ${m.votes.B}</h3>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <span class="badge ${m.status==='voting'?'bg-success':'bg-secondary'}">${m.status}</span>
+                            ${m.winner ? '<h2 class="text-danger">WINNER: ' + m.winner + '</h2>' : ''}
+                        </div>
+                    `;
+                } else {
+                    display.innerHTML = '<p>無進行中的對戰</p>';
+                }
+
+                // 更新作品清單 (只有當清單有變動或目前是空的時候才更新，減少 DOM 操作)
+                if (data.works && data.works.length > 0) {
+                    const listBody = document.getElementById('works-list');
+                    if (listBody.children.length === 0 || data.current_match?.status === 'finished') {
+                        renderWorksList(data.works);
+                    }
+                }
+            } catch (e) {
+                console.error("Status update error", e);
             }
         }
 

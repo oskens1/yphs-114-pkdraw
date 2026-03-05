@@ -302,19 +302,32 @@ async def end_round():
 @app.get("/status")
 async def get_status():
     # 強制從 GSheet 讀取最新狀態，確保 Serverless 不同實例同步
+    sync_ok = True
     try:
+        # 在 Serverless 環境，每次請求都檢查是否需要重新載入基本資料
+        if not state.works:
+            state.works = state.gsheet.load_works()
+            state.history = state.gsheet.load_history()
+        
+        # 獲取當前對戰狀態
         current = state.gsheet.load_system_state()
         state.current_match = current
-        if not state.works:
-            load_data()
     except Exception as e:
         print(f"Error syncing status: {e}")
+        sync_ok = False
 
-    return JSONResponse({
-        "current_match": state.current_match,
-        "round_count": len(state.history),
-        "works": [w.to_dict() for w in state.works]
-    })
+    return JSONResponse(
+        content={
+            "current_match": state.current_match,
+            "round_count": len(state.history),
+            "works": [w.to_dict() for w in state.works] if state.works else [],
+            "sync_ok": sync_ok
+        },
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache"
+        }
+    )
 
 @app.get("/test_sheet")
 async def test_sheet():
