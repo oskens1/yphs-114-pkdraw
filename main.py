@@ -77,6 +77,7 @@ def load_data():
     try:
         state.works = state.gsheet.load_works()
         state.history = state.gsheet.load_history()
+        state.current_match = state.gsheet.load_system_state()
     except Exception as e:
         print(f"Error loading data from GSheet: {e}")
         # Fallback to local if env not set (for local dev)
@@ -204,16 +205,31 @@ async def next_round():
     state.last_picked_ids.append(picked[1].id)
     if len(state.last_picked_ids) > len(state.works) // 2:
         state.last_picked_ids = state.last_picked_ids[2:]
+    
+    # 持久化狀態到 GSheet
+    try:
+        state.gsheet.save_system_state(state.current_match)
+    except Exception as e:
+        print(f"Error saving system state: {e}")
         
     return JSONResponse(state.current_match)
 
 @app.post("/vote")
 async def vote(choice: str = Form(...)):
+    # 投票時也要抓取最新狀態，避免實例間 votes 數字不同步
+    try:
+        state.current_match = state.gsheet.load_system_state()
+    except: pass
+
     if not state.current_match or state.current_match["status"] != "voting":
         return JSONResponse({"error": "不在投票時間"}, status_code=400)
     
     if choice in ["A", "B"]:
         state.current_match["votes"][choice] += 1
+        # 保存回 GSheet
+        try:
+            state.gsheet.save_system_state(state.current_match)
+        except: pass
         return JSONResponse({"status": "ok"})
     return JSONResponse({"error": "無效選擇"}, status_code=400)
 
@@ -255,6 +271,11 @@ async def end_round():
     state.current_match["status"] = "finished"
     state.current_match["winner"] = winner
     
+    # 持久化清除目前對戰
+    try:
+        state.gsheet.save_system_state(state.current_match)
+    except: pass
+
     # 紀錄歷史
     history_entry = {
         "round": len(state.history) + 1,
@@ -280,6 +301,15 @@ async def end_round():
 
 @app.get("/status")
 async def get_status():
+    # 強制從 GSheet 讀取最新狀態，確保 Serverless 不同實例同步
+    try:
+        current = state.gsheet.load_system_state()
+        state.current_match = current
+        if not state.works:
+            load_data()
+    except Exception as e:
+        print(f"Error syncing status: {e}")
+
     return JSONResponse({
         "current_match": state.current_match,
         "round_count": len(state.history),

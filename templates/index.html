@@ -119,7 +119,14 @@
 
     <script>
         let currentMatchId = null;
-        let hasVoted = false;
+
+        function getHasVoted(matchId) {
+            return localStorage.getItem('voted_' + matchId) === 'true';
+        }
+
+        function setHasVoted(matchId) {
+            localStorage.setItem('voted_' + matchId, 'true');
+        }
 
         async function checkStatus() {
             try {
@@ -130,13 +137,17 @@
                     const matchId = data.current_match.A.id + '_' + data.current_match.B.id;
                     if (matchId !== currentMatchId) {
                         currentMatchId = matchId;
-                        hasVoted = false;
                         showMatch(data.current_match);
-                    } else if (hasVoted) {
+                    } else if (getHasVoted(matchId)) {
                         // 如果已經投過票，確保狀態顯示正確
                         document.getElementById('vote-status').style.display = 'block';
                         document.getElementById('btnA').disabled = true;
                         document.getElementById('btnB').disabled = true;
+                        // 雖然 matchId 沒變，但如果 CSS 類別掉了也要補回來
+                        const votedSide = localStorage.getItem('voted_side_' + matchId);
+                        if (votedSide) {
+                            document.getElementById('img' + votedSide).classList.add('voted');
+                        }
                     }
                 } else {
                     if (currentMatchId !== null) {
@@ -150,6 +161,9 @@
         }
 
         function showMatch(match) {
+            const matchId = match.A.id + '_' + match.B.id;
+            const hasVoted = getHasVoted(matchId);
+
             document.getElementById('waiting').style.display = 'none';
             document.getElementById('match').style.display = 'block';
             document.getElementById('imgA').src = match.A.image_url;
@@ -163,6 +177,10 @@
                 document.getElementById('vote-status').style.display = 'block';
                 document.getElementById('btnA').disabled = true;
                 document.getElementById('btnB').disabled = true;
+                const votedSide = localStorage.getItem('voted_side_' + matchId);
+                if (votedSide) {
+                    document.getElementById('img' + votedSide).classList.add('voted');
+                }
             } else {
                 document.getElementById('vote-status').style.display = 'none';
                 document.getElementById('btnA').disabled = false;
@@ -176,7 +194,7 @@
         }
 
         async function vote(choice) {
-            if (hasVoted) return;
+            if (!currentMatchId || getHasVoted(currentMatchId)) return;
 
             const formData = new FormData();
             formData.append('choice', choice);
@@ -187,7 +205,9 @@
                     body: formData
                 });
                 if (response.ok) {
-                    hasVoted = true;
+                    setHasVoted(currentMatchId);
+                    localStorage.setItem('voted_side_' + currentMatchId, choice);
+                    
                     document.getElementById('vote-status').style.display = 'block';
                     document.getElementById('btnA').disabled = true;
                     document.getElementById('btnB').disabled = true;

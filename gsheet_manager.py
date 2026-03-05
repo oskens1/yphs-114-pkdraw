@@ -179,3 +179,44 @@ class GSheetManager:
             ws_history.clear()
             ws_history.append_row(["round", "A_id", "B_id", "winner", "votes_A", "votes_B", "elo_A_old", "elo_A_new", "elo_B_old", "elo_B_new"])
         except: pass
+
+        try:
+            ws_state = sh.worksheet("SystemState")
+            ws_state.clear()
+            ws_state.append_row(["key", "value"])
+        except: pass
+
+    def _get_state_sheet(self):
+        client = self._get_client()
+        sh = client.open_by_key(self.spreadsheet_id)
+        try:
+            return sh.worksheet("SystemState")
+        except gspread.exceptions.WorksheetNotFound:
+            ws = sh.add_worksheet(title="SystemState", rows="10", cols="2")
+            ws.append_row(["key", "value"])
+            return ws
+
+    def save_system_state(self, current_match: Optional[Dict[str, Any]]):
+        ws = self._get_state_sheet()
+        value = json.dumps(current_match) if current_match else ""
+        # 找 Key="current_match" 的列
+        records = ws.get_all_records()
+        row_idx = -1
+        for i, r in enumerate(records):
+            if r["key"] == "current_match":
+                row_idx = i + 2 # +1 for 1-based, +1 for header
+                break
+        
+        if row_idx > 0:
+            ws.update_cell(row_idx, 2, value)
+        else:
+            ws.append_row(["current_match", value])
+
+    def load_system_state(self) -> Optional[Dict[str, Any]]:
+        ws = self._get_state_sheet()
+        records = ws.get_all_records()
+        for r in records:
+            if r["key"] == "current_match":
+                val = r["value"]
+                return json.loads(val) if val else None
+        return None
