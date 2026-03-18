@@ -9,3 +9,4 @@ gspread
 google-auth
 cloudinary
 Pillow
+python-dotenv

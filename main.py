@@ -3,8 +3,12 @@ import json
 import random
 import shutil
 import time
-from dotenv import load_dotenv
-load_dotenv()
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from fastapi import FastAPI, UploadFile, File, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
@@ -52,8 +56,8 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # 版本資訊
-APP_VERSION = "v1.2.0"
-UPDATE_LOG = "引入記憶體快取機制，大幅提升多人併發時的反應速度並解決 Google API 限流問題。"
+APP_VERSION = "v1.2.1"
+UPDATE_LOG = "修復 Vercel 啟動錯誤並優化快取機制。"
 
 # 全域狀態
 class State:
