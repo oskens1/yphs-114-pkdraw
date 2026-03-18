@@ -351,7 +351,8 @@
         
         renderWorksList(initialWorks);
 
-        setInterval(updateStatus, 3000);
+        // 定期更新狀態 (每 5 秒，避免觸發 Google API 限流)
+        setInterval(updateStatus, 5000);
         updateStatus();
     </script>
 </body>

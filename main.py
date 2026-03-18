@@ -56,8 +56,8 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # 版本資訊
-APP_VERSION = "v1.2.2"
-UPDATE_LOG = "實作跨實例 SystemID 同步，並為老師主控台提供專屬即時數據通道。"
+APP_VERSION = "v1.2.3"
+UPDATE_LOG = "修復 429 錯誤導致的同步卡死迴圈，並修正 Vercel 環境下的重設邏輯與阻塞問題。"
 
 # 全域狀態
 class State:
@@ -73,6 +73,8 @@ class State:
     # 用於快取，減少對 GSheet 的頻繁讀取
     last_sync_time: float = 0
     sync_interval: int = 12 # 學生端每 12 秒同步一次
+    data_loaded: bool = False
+    last_load_attempt: float = 0 # 上次嘗試載入資料的時間
     
     gsheet = GSheetManager()
     cloudinary = CloudinaryManager()
@@ -86,29 +88,44 @@ def save_data():
         print(f"Error saving works to GSheet: {e}")
 
 def load_data():
+    now = time.time()
+    # 防止短時間內頻繁重試 (10秒冷卻)
+    if now - state.last_load_attempt < 10:
+        return
+    state.last_load_attempt = now
+    
     try:
-        state.works = state.gsheet.load_works()
-        state.history = state.gsheet.load_history()
-        state.current_match = state.gsheet.load_system_state()
+        works = state.gsheet.load_works()
+        history = state.gsheet.load_history()
+        current_match, sid = state.gsheet.load_system_data()
+        
+        state.works = works
+        state.history = history
+        state.current_match = current_match
         
         # 同步 System ID
-        sid = state.gsheet.load_system_id()
         if sid:
             state.system_id = sid
         else:
             state.system_id = str(int(time.time()))
             state.gsheet.save_system_id(state.system_id)
 
-        # 如果 GSheet 為空，嘗試從本地備份讀取並同步到 GSheet
-        if not state.works and os.path.exists(DATA_FILE):
+        # 如果 GSheet 為空且「非Vercel環境」，才嘗試從本地備份讀取並同步到 GSheet
+        if not state.works and not IS_VERCEL and os.path.exists(DATA_FILE):
             print("GSheet is empty, loading from local backup...")
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 state.works = [WorkItem.from_dict(d) for d in data]
             save_data() # 同步到 GSheet
+            
+        state.data_loaded = True # 只有成功載入後才標記完成
+        print(f"Data successfully loaded from GSheet. Works: {len(state.works)}")
     except Exception as e:
         print(f"Error loading data from GSheet: {e}")
-        if os.path.exists(DATA_FILE):
+        state.data_loaded = False # 標記為未完成，下次請求會再重試
+        
+        # 如果是本地環境且失敗，嘗試從本地備份讀取以便維持基本運作
+        if not IS_VERCEL and not state.works and os.path.exists(DATA_FILE):
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 state.works = [WorkItem.from_dict(d) for d in data]
@@ -118,14 +135,14 @@ async def startup_event():
     pass
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    if not state.works:
+def index(request: Request):
+    if not state.data_loaded:
         load_data()
     return templates.TemplateResponse("index.html", {"request": request, "works": state.works})
 
 @app.get("/admin", response_class=HTMLResponse)
-async def admin(request: Request):
-    if not state.works:
+def admin(request: Request):
+    if not state.data_loaded:
         load_data()
     return templates.TemplateResponse("admin.html", {
         "request": request, 
@@ -169,8 +186,8 @@ async def upload_pdf(file: UploadFile = File(...)):
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 @app.post("/next_round")
-async def next_round():
-    if not state.works:
+def next_round():
+    if not state.data_loaded:
         load_data()
 
     if len(state.works) < 2:
@@ -204,8 +221,8 @@ async def next_round():
     return JSONResponse(state.current_match)
 
 @app.post("/vote")
-async def vote(choice: str = Form(...)):
-    if not state.works:
+def vote(choice: str = Form(...)):
+    if not state.data_loaded:
         load_data()
 
     if not state.current_match or state.current_match["status"] != "voting":
@@ -225,8 +242,8 @@ async def vote(choice: str = Form(...)):
     return JSONResponse({"error": "無效選擇"}, status_code=400)
 
 @app.post("/end_round")
-async def end_round():
-    if not state.works:
+def end_round():
+    if not state.data_loaded:
         load_data()
 
     # 結束回合時，從 GSheet 取得最終正確票數
@@ -280,25 +297,28 @@ async def end_round():
     return JSONResponse(state.current_match)
 
 @app.get("/status")
-async def get_status():
+def get_status():
     sync_ok = True
     now = time.time()
     try:
-        if not state.works:
+        if not state.data_loaded:
             load_data()
         
         if state.current_match is None or (now - state.last_sync_time > state.sync_interval):
-            current = state.gsheet.load_system_state()
-            if current and current["status"] == "voting":
-                match_id = f"{current['A']['id']}_{current['B']['id']}"
-                current["votes"] = state.gsheet.get_votes_count(match_id)
-            state.current_match = current
-            # 同時同步 System ID 以便偵測重設
-            sid = state.gsheet.load_system_id()
-            if sid: state.system_id = sid
-            state.last_sync_time = now
+            try:
+                current, sid = state.gsheet.load_system_data()
+                if current and current["status"] == "voting":
+                    match_id = f"{current['A']['id']}_{current['B']['id']}"
+                    current["votes"] = state.gsheet.get_votes_count(match_id)
+                state.current_match = current
+                if sid: state.system_id = sid
+            except Exception as e:
+                print(f"Sync Inner Error: {e}")
+                sync_ok = False
+            finally:
+                state.last_sync_time = now
     except Exception as e:
-        print(f"Sync Error: {e}")
+        print(f"Global Status Error: {e}")
         sync_ok = False
 
     return JSONResponse(
@@ -314,19 +334,18 @@ async def get_status():
     )
 
 @app.get("/admin_status")
-async def get_admin_status():
+def get_admin_status():
     """老師專用的即時狀態路由，繞過快取直接讀取 GSheet"""
     try:
-        if not state.works:
+        if not state.data_loaded:
             load_data()
         
-        current = state.gsheet.load_system_state()
+        current, sid = state.gsheet.load_system_data()
         if current and current["status"] == "voting":
             match_id = f"{current['A']['id']}_{current['B']['id']}"
             current["votes"] = state.gsheet.get_votes_count(match_id)
         
         state.current_match = current
-        sid = state.gsheet.load_system_id()
         if sid: state.system_id = sid
         
         return JSONResponse(content={
@@ -379,9 +398,10 @@ async def export_excel():
     return FileResponse(export_path, filename="results.xlsx")
 
 @app.post("/reset")
-async def reset():
+def reset():
     state.works, state.current_match, state.history, state.last_picked_ids = [], None, [], []
     state.last_sync_time = 0 
+    state.data_loaded = True
     state.system_id = str(int(time.time()))
     
     if os.path.exists(DATA_FILE): os.remove(DATA_FILE)

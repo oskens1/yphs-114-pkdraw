@@ -273,13 +273,8 @@ class GSheetManager:
             ws.append_row(["current_match", value])
 
     def load_system_state(self) -> Optional[Dict[str, Any]]:
-        ws = self._get_state_sheet()
-        records = ws.get_all_records()
-        for r in records:
-            if r["key"] == "current_match":
-                val = r["value"]
-                return json.loads(val) if val else None
-        return None
+        current_match, _ = self.load_system_data()
+        return current_match
 
     def save_system_id(self, system_id: str):
         ws = self._get_state_sheet()
@@ -296,9 +291,19 @@ class GSheetManager:
             ws.append_row(["system_id", system_id])
 
     def load_system_id(self) -> Optional[str]:
+        _, system_id = self.load_system_data()
+        return system_id
+
+    def load_system_data(self) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+        """合併讀取系統狀態與識別碼，節省 API 配額"""
         ws = self._get_state_sheet()
         records = ws.get_all_records()
+        current_match = None
+        system_id = None
         for r in records:
-            if r["key"] == "system_id":
-                return str(r["value"])
-        return None
+            if r["key"] == "current_match":
+                val = r["value"]
+                current_match = json.loads(val) if val else None
+            elif r["key"] == "system_id":
+                system_id = str(r["value"])
+        return current_match, system_id
