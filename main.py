@@ -95,13 +95,13 @@ def load_data():
     state.last_load_attempt = now
     
     try:
-        works = state.gsheet.load_works()
-        history = state.gsheet.load_history()
-        current_match, sid = state.gsheet.load_system_data()
+        # 使用批次讀取優化 (1次 API 呼叫)
+        data = state.gsheet.load_all_data()
         
-        state.works = works
-        state.history = history
-        state.current_match = current_match
+        state.works = data["works"]
+        state.history = data["history"]
+        state.current_match = data["current_match"]
+        sid = data["system_id"]
         
         # 同步 System ID
         if sid:
@@ -114,12 +114,12 @@ def load_data():
         if not state.works and not IS_VERCEL and os.path.exists(DATA_FILE):
             print("GSheet is empty, loading from local backup...")
             with open(DATA_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                state.works = [WorkItem.from_dict(d) for d in data]
+                local_data = json.load(f)
+                state.works = [WorkItem.from_dict(d) for d in local_data]
             save_data() # 同步到 GSheet
             
         state.data_loaded = True # 只有成功載入後才標記完成
-        print(f"Data successfully loaded from GSheet. Works: {len(state.works)}")
+        print(f"Data successfully loaded from GSheet (Batch). Works: {len(state.works)}")
     except Exception as e:
         print(f"Error loading data from GSheet: {e}")
         state.data_loaded = False # 標記為未完成，下次請求會再重試
@@ -127,8 +127,8 @@ def load_data():
         # 如果是本地環境且失敗，嘗試從本地備份讀取以便維持基本運作
         if not IS_VERCEL and not state.works and os.path.exists(DATA_FILE):
             with open(DATA_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                state.works = [WorkItem.from_dict(d) for d in data]
+                local_data = json.load(f)
+                state.works = [WorkItem.from_dict(d) for d in local_data]
 
 @app.on_event("startup")
 async def startup_event():
@@ -306,10 +306,8 @@ def get_status():
         
         if state.current_match is None or (now - state.last_sync_time > state.sync_interval):
             try:
-                current, sid = state.gsheet.load_system_data()
-                if current and current["status"] == "voting":
-                    match_id = f"{current['A']['id']}_{current['B']['id']}"
-                    current["votes"] = state.gsheet.get_votes_count(match_id)
+                # 使用批次讀取優化 (1次 API 呼叫)
+                current, sid = state.gsheet.load_status_data()
                 state.current_match = current
                 if sid: state.system_id = sid
             except Exception as e:
@@ -340,10 +338,8 @@ def get_admin_status():
         if not state.data_loaded:
             load_data()
         
-        current, sid = state.gsheet.load_system_data()
-        if current and current["status"] == "voting":
-            match_id = f"{current['A']['id']}_{current['B']['id']}"
-            current["votes"] = state.gsheet.get_votes_count(match_id)
+        # 使用批次讀取優化 (1次 API 呼叫)
+        current, sid = state.gsheet.load_status_data()
         
         state.current_match = current
         if sid: state.system_id = sid

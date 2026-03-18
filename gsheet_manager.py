@@ -302,3 +302,103 @@ class GSheetManager:
             elif r["key"] == "system_id":
                 system_id = str(r["value"])
         return current_match, system_id
+
+    def load_all_data(self) -> Dict[str, Any]:
+        """使用 batch_get 一次讀取所有需要的資料，極大化節省 API 呼叫"""
+        sh = self._get_spreadsheet()
+        ranges = ["Works!A:F", "History!A:J", "SystemState!A:B"]
+        try:
+            res = sh.values_batch_get(ranges)
+            value_ranges = res.get("valueRanges", [])
+            
+            # 解析 Works
+            works = []
+            if len(value_ranges) > 0 and "values" in value_ranges[0]:
+                work_rows = value_ranges[0]["values"][1:]
+                for r in work_rows:
+                    if len(r) >= 6:
+                        works.append(WorkItem(
+                            id=str(r[0]), image_url=r[1], elo=int(r[2]),
+                            match_count=int(r[3]), win_count=int(r[4]), team=r[5]
+                        ))
+            
+            # 解析 History
+            history = []
+            if len(value_ranges) > 1 and "values" in value_ranges[1]:
+                history_rows = value_ranges[1]["values"][1:]
+                for r in history_rows:
+                    if len(r) >= 10:
+                        history.append({
+                            "round": int(r[0]), "A_id": r[1], "B_id": r[2], "winner": r[3],
+                            "votes": {"A": int(r[4]), "B": int(r[5])},
+                            "elo_changes": {
+                                "A": {"old": int(r[6]), "new": int(r[7])},
+                                "B": {"old": int(r[8]), "new": int(r[9])}
+                            }
+                        })
+            
+            # 解析 SystemState
+            current_match = None
+            system_id = None
+            if len(value_ranges) > 2 and "values" in value_ranges[2]:
+                state_rows = value_ranges[2]["values"][1:]
+                for r in state_rows:
+                    if len(r) >= 2:
+                        if r[0] == "current_match":
+                            current_match = json.loads(r[1]) if r[1] else None
+                        elif r[0] == "system_id":
+                            system_id = str(r[1])
+            
+            return {
+                "works": works, "history": history,
+                "current_match": current_match, "system_id": system_id
+            }
+        except Exception as e:
+            print(f"Batch Get (All) Error: {e}, falling back to single reads...")
+            current_match, system_id = self.load_system_data()
+            return {
+                "works": self.load_works(),
+                "history": self.load_history(),
+                "current_match": current_match,
+                "system_id": system_id
+            }
+
+    def load_status_data(self) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+        """使用 batch_get 同時讀取系統狀態、識別碼與即時票數統計"""
+        sh = self._get_spreadsheet()
+        ranges = ["SystemState!A:B", "VotesLog!A:C"]
+        try:
+            res = sh.values_batch_get(ranges)
+            value_ranges = res.get("valueRanges", [])
+            
+            current_match = None
+            system_id = None
+            
+            if len(value_ranges) > 0 and "values" in value_ranges[0]:
+                state_rows = value_ranges[0]["values"][1:]
+                for r in state_rows:
+                    if len(r) >= 2:
+                        if r[0] == "current_match":
+                            current_match = json.loads(r[1]) if r[1] else None
+                        elif r[0] == "system_id":
+                            system_id = str(r[1])
+            
+            if current_match and current_match.get("status") == "voting":
+                match_id = f"{current_match['A']['id']}_{current_match['B']['id']}"
+                votes = {"A": 0, "B": 0}
+                if len(value_ranges) > 1 and "values" in value_ranges[1]:
+                    vote_rows = value_ranges[1]["values"][1:]
+                    for r in vote_rows:
+                        if len(r) >= 3 and r[1] == match_id:
+                            choice = r[2]
+                            if choice in votes: votes[choice] += 1
+                current_match["votes"] = votes
+            
+            return current_match, system_id
+        except Exception as e:
+            print(f"Batch Get (Status) Error: {e}, falling back...")
+            current_match, system_id = self.load_system_data()
+            if current_match and current_match.get("status") == "voting":
+                match_id = f"{current_match['A']['id']}_{current_match['B']['id']}"
+                current_match["votes"] = self.get_votes_count(match_id)
+            return current_match, system_id
