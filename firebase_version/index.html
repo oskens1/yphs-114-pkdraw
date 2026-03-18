@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>紅白對抗賽 - 投票系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .work-img { height: 300px; object-fit: contain; }
+        .red-team { border-color: #ef4444; }
+        .white-team { border-color: #e2e8f0; }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fade-in 0.5s ease-out; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+    <div id="app" class="w-full max-w-md">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">紅白對抗賽</h1>
+            <p id="status-text" class="text-gray-600 mt-2 italic">等待系統啟動...</p>
+        </header>
+
+        <!-- Waiting View -->
+        <div id="view-waiting" class="view hidden text-center p-10 bg-white rounded-xl shadow-lg">
+            <div class="animate-bounce text-5xl mb-4">🎨</div>
+            <p class="text-xl font-medium">請稍候，下一場對決即將開始...</p>
+        </div>
+
+        <!-- Voting View -->
+        <div id="view-voting" class="view hidden animate-fade-in">
+            <div class="grid grid-cols-1 gap-6">
+                <!-- Match A (Red) -->
+                <div id="card-A" onclick="vote('A')" class="bg-white p-4 rounded-xl shadow-md border-t-8 red-team cursor-pointer active:scale-95 transition-transform">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">紅隊</span>
+                        <span id="id-A" class="text-gray-500 font-mono"></span>
+                    </div>
+                    <img id="img-A" src="" class="work-img w-full rounded-lg bg-gray-50">
+                </div>
+
+                <div class="flex items-center justify-center my-2">
+                    <span class="bg-gray-800 text-white px-4 py-2 rounded-full font-black italic">VS</span>
+                </div>
+
+                <!-- Match B (White) -->
+                <div id="card-B" onclick="vote('B')" class="bg-white p-4 rounded-xl shadow-md border-t-8 white-team cursor-pointer active:scale-95 transition-transform">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-sm font-bold">白隊</span>
+                        <span id="id-B" class="text-gray-500 font-mono"></span>
+                    </div>
+                    <img id="img-B" src="" class="work-img w-full rounded-lg bg-gray-50">
+                </div>
+            </div>
+            <p class="text-center mt-6 text-gray-500 text-sm">點擊作品即可投票</p>
+        </div>
+
+        <!-- Result View -->
+        <div id="view-result" class="view hidden text-center animate-fade-in">
+            <div class="bg-white p-8 rounded-xl shadow-lg mb-6">
+                <h2 class="text-2xl font-bold mb-4">本回合結束！</h2>
+                <div id="result-detail" class="text-lg text-gray-700"></div>
+                <div class="mt-6">
+                     <div class="text-6xl" id="winner-emoji">🏆</div>
+                </div>
+            </div>
+            <p class="text-gray-500 italic">請等待下一場...</p>
+        </div>
+        
+        <!-- Voter Team Selection (Modal) -->
+        <div id="team-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-6 z-50">
+            <div class="bg-white p-8 rounded-2xl max-w-sm w-full text-center">
+                <h2 class="text-2xl font-bold mb-6">你是哪一隊的？</h2>
+                <div class="flex gap-4">
+                    <button onclick="selectVoterTeam('red')" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg">紅隊</button>
+                    <button onclick="selectVoterTeam('white')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-4 rounded-xl font-bold text-lg shadow-lg">白隊</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDyexSTxp8Y11YQgV15GJgiYXQHZSGvjck",
+            authDomain: "pk-draw.firebaseapp.com",
+            projectId: "pk-draw",
+            storageBucket: "pk-draw.firebasestorage.app",
+            messagingSenderId: "890179467084",
+            appId: "1:890179467084:web:50359ea62a77458d7541e9",
+            measurementId: "G-Q76ZV2BCEP"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let currentMatchId = null;
+        let voterTeam = localStorage.getItem('voterTeam');
+        let hasVoted = false;
+        let lastSystemId = null;
+
+        if (voterTeam) {
+            document.getElementById('team-modal').classList.add('hidden');
+        }
+
+        window.selectVoterTeam = (team) => {
+            voterTeam = team;
+            localStorage.setItem('voterTeam', team);
+            document.getElementById('team-modal').classList.add('hidden');
+        };
+
+        // Listen to system state
+        onSnapshot(doc(db, "system", "current"), (doc) => {
+            if (!doc.exists()) return;
+            const data = doc.data();
+            
+            // Check for system reset
+            if (lastSystemId && data.system_id !== lastSystemId) {
+                localStorage.removeItem('voted_' + currentMatchId);
+                location.reload();
+            }
+            lastSystemId = data.system_id;
+
+            updateUI(data);
+        });
+
+        function updateUI(data) {
+            const views = document.querySelectorAll('.view');
+            views.forEach(v => v.classList.add('hidden'));
+            
+            if (data.status === 'voting') {
+                document.getElementById('view-voting').classList.remove('hidden');
+                document.getElementById('status-text').innerText = `第 ${data.round_number} 回合進行中`;
+                
+                document.getElementById('img-A').src = data.match_A.image_url;
+                document.getElementById('img-B').src = data.match_B.image_url;
+                document.getElementById('id-A').innerText = data.match_A.id;
+                document.getElementById('id-B').innerText = data.match_B.id;
+                
+                if (currentMatchId !== data.match_id) {
+                    currentMatchId = data.match_id;
+                    hasVoted = localStorage.getItem('voted_' + currentMatchId);
+                    updateCardSelection();
+                }
+            } else if (data.status === 'result') {
+                document.getElementById('view-result').classList.remove('hidden');
+                document.getElementById('status-text').innerText = "回合結束";
+                
+                const res = data.last_result;
+                const winnerText = res.winner === 'A' ? "紅隊獲勝！" : "白隊獲勝！";
+                document.getElementById('result-detail').innerHTML = `
+                    <p class="font-bold text-xl mb-2">${winnerText}</p>
+                    <p class="text-sm">得票數：紅隊 ${res.votes.A} vs 白隊 ${res.votes.B}</p>
+                `;
+                document.getElementById('winner-emoji').innerText = res.winner === 'A' ? '🔴' : '⚪';
+            } else {
+                document.getElementById('view-waiting').classList.remove('hidden');
+                document.getElementById('status-text').innerText = "等待對決...";
+            }
+        }
+
+        window.vote = async (choice) => {
+            if (hasVoted) {
+                alert("你已經投過票囉！");
+                return;
+            }
+            if (!currentMatchId) return;
+
+            try {
+                // Submit vote to Firebase
+                await addDoc(collection(db, "votes"), {
+                    match_id: currentMatchId,
+                    choice: choice,
+                    team: voterTeam,
+                    timestamp: serverTimestamp()
+                });
+
+                hasVoted = true;
+                localStorage.setItem('voted_' + currentMatchId, choice);
+                updateCardSelection();
+                
+                // Visual feedback
+                alert("投票成功！");
+            } catch (e) {
+                console.error("Vote error:", e);
+                alert("投票失敗，請再試一次。");
+            }
+        };
+
+        function updateCardSelection() {
+            const cardA = document.getElementById('card-A');
+            const cardB = document.getElementById('card-B');
+            const selection = localStorage.getItem('voted_' + currentMatchId);
+            
+            cardA.classList.remove('ring-4', 'ring-blue-400');
+            cardB.classList.remove('ring-4', 'ring-blue-400');
+            
+            if (selection === 'A') cardA.classList.add('ring-4', 'ring-blue-400');
+            if (selection === 'B') cardB.classList.add('ring-4', 'ring-blue-400');
+        }
+    </script>
+</body>
+</html>
