@@ -55,13 +55,18 @@ class GSheetManager:
                 raise ValueError(f"Google 憑證解析失敗。錯誤詳情: {e}")
         return self.client
 
+    def _get_spreadsheet(self):
+        """獲取並快取試算表物件，避免重複呼叫 open_by_key"""
+        if self.sheet is None:
+            client = self._get_client()
+            try:
+                self.sheet = client.open_by_key(self.spreadsheet_id)
+            except Exception as e:
+                raise ValueError(f"無法打開試算表，請確認 GOOGLE_SHEET_ID 是否正確以及服務帳號 Email 是否已加入共用。錯誤: {e}")
+        return self.sheet
+
     def _get_works_sheet(self):
-        client = self._get_client()
-        try:
-            sh = client.open_by_key(self.spreadsheet_id)
-        except Exception as e:
-            raise ValueError(f"無法打開試算表，請確認 GOOGLE_SHEET_ID 是否正確以及服務帳號 Email 是否已加入共用。錯誤: {e}")
-            
+        sh = self._get_spreadsheet()
         try:
             return sh.worksheet("Works")
         except gspread.exceptions.WorksheetNotFound:
@@ -71,12 +76,7 @@ class GSheetManager:
             return ws
 
     def _get_history_sheet(self):
-        client = self._get_client()
-        try:
-            sh = client.open_by_key(self.spreadsheet_id)
-        except Exception as e:
-            raise ValueError(f"無法打開試算表，請確認 GOOGLE_SHEET_ID 是否正確。錯誤: {e}")
-            
+        sh = self._get_spreadsheet()
         try:
             return sh.worksheet("History")
         except gspread.exceptions.WorksheetNotFound:
@@ -149,8 +149,7 @@ class GSheetManager:
 
     def test_connection(self):
         """強行測試連線並在 Works 表格第一列寫入測試字串"""
-        client = self._get_client()
-        sh = client.open_by_key(self.spreadsheet_id)
+        sh = self._get_spreadsheet()
         # 嘗試獲取或建立一個名為 "ConnectionTest" 的分頁，避免弄亂原本資料
         try:
             ws = sh.worksheet("ConnectionTest")
@@ -165,8 +164,7 @@ class GSheetManager:
 
     def clear_all(self):
         """完全清空 Works 和 History 分頁（保留標題列）"""
-        client = self._get_client()
-        sh = client.open_by_key(self.spreadsheet_id)
+        sh = self._get_spreadsheet()
         
         try:
             ws_works = sh.worksheet("Works")
@@ -189,8 +187,7 @@ class GSheetManager:
         self.clear_votes_log()
 
     def _get_state_sheet(self):
-        client = self._get_client()
-        sh = client.open_by_key(self.spreadsheet_id)
+        sh = self._get_spreadsheet()
         try:
             return sh.worksheet("SystemState")
         except gspread.exceptions.WorksheetNotFound:
@@ -199,8 +196,7 @@ class GSheetManager:
             return ws
 
     def _get_votes_log_sheet(self):
-        client = self._get_client()
-        sh = client.open_by_key(self.spreadsheet_id)
+        sh = self._get_spreadsheet()
         try:
             return sh.worksheet("VotesLog")
         except gspread.exceptions.WorksheetNotFound:
@@ -248,8 +244,7 @@ class GSheetManager:
 
     def clear_votes_log(self):
         """清空投票紀錄（保留標題）"""
-        client = self._get_client()
-        sh = client.open_by_key(self.spreadsheet_id)
+        sh = self._get_spreadsheet()
         try:
             ws = sh.worksheet("VotesLog")
             ws.clear()
