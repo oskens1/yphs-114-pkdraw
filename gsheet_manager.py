@@ -186,6 +186,8 @@ class GSheetManager:
             ws_state.append_row(["key", "value"])
         except: pass
 
+        self.clear_votes_log()
+
     def _get_state_sheet(self):
         client = self._get_client()
         sh = client.open_by_key(self.spreadsheet_id)
@@ -195,6 +197,64 @@ class GSheetManager:
             ws = sh.add_worksheet(title="SystemState", rows="10", cols="2")
             ws.append_row(["key", "value"])
             return ws
+
+    def _get_votes_log_sheet(self):
+        client = self._get_client()
+        sh = client.open_by_key(self.spreadsheet_id)
+        try:
+            return sh.worksheet("VotesLog")
+        except gspread.exceptions.WorksheetNotFound:
+            ws = sh.add_worksheet(title="VotesLog", rows="1000", cols="3")
+            ws.append_row(["timestamp", "match_id", "choice"])
+            return ws
+
+    def record_vote(self, match_id: str, choice: str):
+        """新增一筆投票紀錄 (Append-only) 帶有重試機制以應對 API 限制"""
+        import datetime
+        import time
+        import random
+        
+        # 延遲獲取 worksheet 以免連獲取 worksheet 都被限流
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        max_retries = 10
+        for i in range(max_retries):
+            try:
+                ws = self._get_votes_log_sheet()
+                ws.append_row([now, match_id, choice])
+                return
+            except Exception as e:
+                err_msg = str(e)
+                # 429 是配額限制, 503 是服務暫時不可用, 502 是網關錯誤
+                if ("429" in err_msg or "503" in err_msg or "502" in err_msg) and i < max_retries - 1:
+                    wait_time = (i + 1) * 2 + random.random() * 2
+                    print(f"GSheet API Busy (Retry {i+1}/{max_retries}), waiting {wait_time:.2f}s...")
+                    time.sleep(wait_time)
+                else:
+                    print(f"GSheet Record Vote Error: {err_msg}")
+                    raise e
+
+    def get_votes_count(self, match_id: str) -> Dict[str, int]:
+        """統計特定對戰組合的票數"""
+        ws = self._get_votes_log_sheet()
+        records = ws.get_all_records()
+        counts = {"A": 0, "B": 0}
+        for r in records:
+            if r["match_id"] == match_id:
+                choice = r["choice"]
+                if choice in counts:
+                    counts[choice] += 1
+        return counts
+
+    def clear_votes_log(self):
+        """清空投票紀錄（保留標題）"""
+        client = self._get_client()
+        sh = client.open_by_key(self.spreadsheet_id)
+        try:
+            ws = sh.worksheet("VotesLog")
+            ws.clear()
+            ws.append_row(["timestamp", "match_id", "choice"])
+        except: pass
 
     def save_system_state(self, current_match: Optional[Dict[str, Any]]):
         ws = self._get_state_sheet()

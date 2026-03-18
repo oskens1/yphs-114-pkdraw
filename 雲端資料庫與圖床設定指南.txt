@@ -1,0 +1,57 @@
+=========================================
+      雲端資料庫與圖床設定指南 (SOP)
+=========================================
+
+本文件記錄了如何將「紅白對抗賽系統」連接至雲端服務（Google Sheets & Cloudinary），以確保在 Vercel 等 Serverless 環境下資料不會遺失。
+
+---
+
+### 一、為什麼需要這些設定？
+由於 Vercel 的伺服器是「暫時性」的，每次重新啟動都會清空本地檔案。因此：
+1. **Google Sheets**：作為主資料庫，儲存作品資訊、歷史紀錄與投票 Log。
+2. **Cloudinary**：作為圖床，儲存所有從 PDF 提取的作品圖片。
+3. **.env 檔案**：在本地開發時，用來存放上述服務的機密金鑰。
+
+---
+
+### 二、Google Sheets 設定流程
+1. **建立試算表**：建立一個新的 Google Sheet。
+2. **共用權限**：將「Google 服務帳號信箱」加入共用名單，並設為「編輯者」。
+   - 本專案使用的信箱：`student-bank-system@gen-lang-client-0689020682.iam.gserviceaccount.com`
+3. **獲取 Sheet ID**：從網址中擷取 ID。
+   - 範例網址：`https://docs.google.com/spreadsheets/d/1-4XSFogXighu71XpLStfvIZVjzv-7-MnyeE24u0oi4w/edit`
+   - Sheet ID 即為：`1-4XSFogXighu71XpLStfvIZVjzv-7-MnyeE24u0oi4w`
+
+---
+
+### 三、Cloudinary 圖床設定
+1. 登入 [Cloudinary Console](https://cloudinary.com/console)。
+2. 獲取以下資訊：
+   - `Cloud Name`
+   - `API Key`
+   - `API Secret`
+
+---
+
+### 四、本地環境變數 (.env) 範例
+在專案根目錄建立一個名為 `.env` 的檔案，內容格式如下：
+
+```env
+GOOGLE_SHEET_ID=您的試算表ID
+GOOGLE_CREDENTIALS={"type": "service_account", "project_id": ...} (整串 JSON 內容)
+CLOUDINARY_CLOUD_NAME=您的CloudName
+CLOUDINARY_API_KEY=您的APIKey
+CLOUDINARY_API_SECRET=您的APISecret
+```
+
+---
+
+### 五、壓力測試驗證
+若要驗證併發投票是否穩定，可執行：
+`python load_test.py --url http://localhost:8000 --count 30`
+
+- 本系統已實作 **Append-only 寫入機制** 與 **指数退避重試機制 (Exponential Backoff)**。
+- 即使 Google API 出現 429 (Quota Exceeded)，系統也會自動排隊重試，確保每一票都成功寫入。
+
+---
+[本指南由 Cline 於 2026/03/18 撰寫存檔]

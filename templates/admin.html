@@ -167,7 +167,7 @@
                 if (response.ok) {
                     alert("連線成功！\n" + result.message);
                 } else {
-                    alert("連線失敗！\n錯誤原因：" + result.message + "\n\n詳細資訊已輸出至控制台");
+                    alert("連線失敗！\n錯誤原因：" + result.message);
                     console.error("Detailed Error:", result.detail);
                 }
             } catch (error) {
@@ -278,17 +278,24 @@
             document.getElementById('debugBtn').className = `btn btn-sm float-end me-2 ${data.debug_mode ? 'btn-warning' : 'btn-outline-warning'}`;
         }
 
+        let clientSystemId = null;
+
         async function updateStatus() {
             try {
                 const response = await fetch('/status');
                 const data = await response.json();
+
+                if (clientSystemId === null) {
+                    clientSystemId = data.system_id;
+                } else if (data.system_id && data.system_id !== clientSystemId) {
+                    location.reload();
+                    return;
+                }
                 
-                // 更新 Debug 按鈕狀態
                 const debugBtn = document.getElementById('debugBtn');
                 debugBtn.innerHTML = `壓力測試模式: ${data.debug_mode ? 'ON' : 'OFF'}`;
                 debugBtn.className = `btn btn-sm float-end me-2 ${data.debug_mode ? 'btn-warning' : 'btn-outline-warning'}`;
 
-                // 更新同步狀態顯示
                 const versionBadge = document.querySelector('.badge.bg-dark') || document.querySelector('.badge.bg-success') || document.querySelector('.badge.bg-danger');
                 if (data.sync_ok) {
                     versionBadge.className = 'badge bg-success';
@@ -298,7 +305,6 @@
                     versionBadge.innerHTML = '連線異常 (嘗試重新同步...)';
                 }
 
-                // 更新對戰區域
                 const display = document.getElementById('current-match-display');
                 if (data.current_match) {
                     const m = data.current_match;
@@ -324,10 +330,11 @@
                     display.innerHTML = '<p>無進行中的對戰</p>';
                 }
 
-                // 更新作品清單 (只有當清單有變動或目前是空的時候才更新，減少 DOM 操作)
-                if (data.works && data.works.length > 0) {
+                if (data.works) {
                     const listBody = document.getElementById('works-list');
-                    if (listBody.children.length === 0 || data.current_match?.status === 'finished') {
+                    if (data.works.length === 0) {
+                        listBody.innerHTML = '<tr><td colspan="6" class="text-center">目前無作品，請上傳 PDF</td></tr>';
+                    } else if (listBody.children.length !== data.works.length || data.current_match?.status === 'finished') {
                         renderWorksList(data.works);
                     }
                 }
@@ -336,7 +343,6 @@
             }
         }
 
-        // 初始化作品列表
         const initialWorks = {% if works %}[
             {% for w in works %}
                 {{ w.to_dict() | tojson }},

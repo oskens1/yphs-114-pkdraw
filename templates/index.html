@@ -120,6 +120,9 @@
     <script>
         let currentMatchId = null;
         let debugMode = false;
+        let isVoting = false;
+        let statusErrorCount = 0;
+        let clientSystemId = localStorage.getItem('system_id');
 
         function getHasVoted(matchId) {
             return localStorage.getItem('voted_' + matchId) === 'true';
@@ -132,9 +135,22 @@
         async function checkStatus() {
             try {
                 const response = await fetch('/status');
+                if (!response.ok) throw new Error('Network error');
                 const data = await response.json();
                 
+                statusErrorCount = 0;
                 debugMode = data.debug_mode;
+
+                // 檢查系統 ID 是否變動（表示系統已重設）
+                if (data.system_id && data.system_id !== clientSystemId) {
+                    console.log("System reset detected, clearing local cache...");
+                    localStorage.clear();
+                    localStorage.setItem('system_id', data.system_id);
+                    clientSystemId = data.system_id;
+                    currentMatchId = null;
+                    location.reload(); 
+                    return;
+                }
 
                 if (data.current_match && data.current_match.status === 'voting') {
                     const matchId = data.current_match.A.id + '_' + data.current_match.B.id;
@@ -142,11 +158,9 @@
                         currentMatchId = matchId;
                         showMatch(data.current_match);
                     } else if (getHasVoted(matchId)) {
-                        // 如果已經投過票，確保狀態顯示正確
                         document.getElementById('vote-status').style.display = 'block';
                         document.getElementById('btnA').disabled = true;
                         document.getElementById('btnB').disabled = true;
-                        // 雖然 matchId 沒變，但如果 CSS 類別掉了也要補回來
                         const votedSide = localStorage.getItem('voted_side_' + matchId);
                         if (votedSide) {
                             document.getElementById('img' + votedSide).classList.add('voted');
@@ -160,6 +174,7 @@
                 }
             } catch (e) {
                 console.error("Error checking status", e);
+                statusErrorCount++;
             }
         }
 
@@ -172,11 +187,11 @@
             document.getElementById('imgA').src = match.A.image_url;
             document.getElementById('imgB').src = match.B.image_url;
             
-            // 移除之前的選中效果
             document.getElementById('imgA').classList.remove('voted');
             document.getElementById('imgB').classList.remove('voted');
             
             if (hasVoted) {
+                document.getElementById('vote-status').innerText = "✅ 投票成功！請等待下一輪";
                 document.getElementById('vote-status').style.display = 'block';
                 document.getElementById('btnA').disabled = true;
                 document.getElementById('btnB').disabled = true;
@@ -197,8 +212,15 @@
         }
 
         async function vote(choice) {
-            if (!currentMatchId) return;
+            if (!currentMatchId || isVoting) return;
             if (!debugMode && getHasVoted(currentMatchId)) return;
+
+            isVoting = true;
+            document.getElementById('btnA').disabled = true;
+            document.getElementById('btnB').disabled = true;
+            const statusEl = document.getElementById('vote-status');
+            statusEl.innerText = "⏳ 正在傳送投票...";
+            statusEl.style.display = 'block';
 
             const formData = new FormData();
             formData.append('choice', choice);
@@ -211,18 +233,22 @@
                 if (response.ok) {
                     setHasVoted(currentMatchId);
                     localStorage.setItem('voted_side_' + currentMatchId, choice);
-                    
-                    document.getElementById('vote-status').style.display = 'block';
-                    document.getElementById('btnA').disabled = true;
-                    document.getElementById('btnB').disabled = true;
+                    statusEl.innerText = "✅ 投票成功！請等待下一輪";
                     if (choice === 'A') {
                         document.getElementById('imgA').classList.add('voted');
                     } else {
                         document.getElementById('imgB').classList.add('voted');
                     }
+                } else {
+                    throw new Error('Vote failed');
                 }
             } catch (e) {
-                alert("投票失敗");
+                alert("投票失敗，請檢查網路後再試一次");
+                document.getElementById('btnA').disabled = false;
+                document.getElementById('btnB').disabled = false;
+                statusEl.style.display = 'none';
+            } finally {
+                isVoting = false;
             }
         }
 
