@@ -282,7 +282,7 @@
 
         async function updateStatus() {
             try {
-                const response = await fetch('/status');
+                const response = await fetch('/admin_status');
                 const data = await response.json();
 
                 if (clientSystemId === null) {

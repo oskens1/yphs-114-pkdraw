@@ -56,8 +56,8 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # 版本資訊
-APP_VERSION = "v1.2.1"
-UPDATE_LOG = "修復 Vercel 啟動錯誤並優化快取機制。"
+APP_VERSION = "v1.2.2"
+UPDATE_LOG = "實作跨實例 SystemID 同步，並為老師主控台提供專屬即時數據通道。"
 
 # 全域狀態
 class State:
@@ -68,11 +68,11 @@ class State:
     debug_mode: bool = False
     
     # 系統識別碼，用於強制客戶端清除舊的投票快取
-    system_id: str = str(int(time.time()))
+    system_id: str = "init"
     
     # 用於快取，減少對 GSheet 的頻繁讀取
     last_sync_time: float = 0
-    sync_interval: int = 15 # 每 15 秒才從 GSheet 強制同步一次狀態 (防止 429 錯誤)
+    sync_interval: int = 12 # 學生端每 12 秒同步一次
     
     gsheet = GSheetManager()
     cloudinary = CloudinaryManager()
@@ -91,6 +91,14 @@ def load_data():
         state.history = state.gsheet.load_history()
         state.current_match = state.gsheet.load_system_state()
         
+        # 同步 System ID
+        sid = state.gsheet.load_system_id()
+        if sid:
+            state.system_id = sid
+        else:
+            state.system_id = str(int(time.time()))
+            state.gsheet.save_system_id(state.system_id)
+
         # 如果 GSheet 為空，嘗試從本地備份讀取並同步到 GSheet
         if not state.works and os.path.exists(DATA_FILE):
             print("GSheet is empty, loading from local backup...")
@@ -200,19 +208,16 @@ async def vote(choice: str = Form(...)):
     if not state.works:
         load_data()
 
-    # 投票時優先使用記憶體狀態，避免頻繁讀取 GSheet
     if not state.current_match or state.current_match["status"] != "voting":
         return JSONResponse({"error": "不在投票時間"}, status_code=400)
     
     if choice in ["A", "B"]:
         match_id = f"{state.current_match['A']['id']}_{state.current_match['B']['id']}"
         try:
-            # 1. 寫入 GSheet (核心持久化)
+            # 1. 寫入 GSheet
             state.gsheet.record_vote(match_id, choice)
-            
-            # 2. 同步更新記憶體中的票數 (這讓 /status 瞬間有感)
+            # 2. 更新記憶體
             state.current_match["votes"][choice] += 1
-            
             return JSONResponse({"status": "ok"})
         except Exception as e:
             print(f"Vote Recording Error: {e}")
@@ -224,7 +229,7 @@ async def end_round():
     if not state.works:
         load_data()
 
-    # 結束回合時，確保從 GSheet 取得最終正確票數
+    # 結束回合時，從 GSheet 取得最終正確票數
     try:
         current = state.gsheet.load_system_state()
         if current:
@@ -278,21 +283,20 @@ async def end_round():
 async def get_status():
     sync_ok = True
     now = time.time()
-    
     try:
         if not state.works:
             load_data()
         
-        # 實作快取：只有超過 sync_interval 秒，或者記憶體完全沒資料時才去跟 GSheet 同步
         if state.current_match is None or (now - state.last_sync_time > state.sync_interval):
-            print("Syncing state with GSheet (Periodic or Initial)...")
             current = state.gsheet.load_system_state()
             if current and current["status"] == "voting":
                 match_id = f"{current['A']['id']}_{current['B']['id']}"
                 current["votes"] = state.gsheet.get_votes_count(match_id)
             state.current_match = current
+            # 同時同步 System ID 以便偵測重設
+            sid = state.gsheet.load_system_id()
+            if sid: state.system_id = sid
             state.last_sync_time = now
-            
     except Exception as e:
         print(f"Sync Error: {e}")
         sync_ok = False
@@ -308,6 +312,32 @@ async def get_status():
         },
         headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
     )
+
+@app.get("/admin_status")
+async def get_admin_status():
+    """老師專用的即時狀態路由，繞過快取直接讀取 GSheet"""
+    try:
+        if not state.works:
+            load_data()
+        
+        current = state.gsheet.load_system_state()
+        if current and current["status"] == "voting":
+            match_id = f"{current['A']['id']}_{current['B']['id']}"
+            current["votes"] = state.gsheet.get_votes_count(match_id)
+        
+        state.current_match = current
+        sid = state.gsheet.load_system_id()
+        if sid: state.system_id = sid
+        
+        return JSONResponse(content={
+            "current_match": state.current_match,
+            "works": [w.to_dict() for w in state.works],
+            "sync_ok": True,
+            "system_id": state.system_id,
+            "debug_mode": state.debug_mode
+        })
+    except Exception as e:
+        return JSONResponse(content={"sync_ok": False, "message": str(e)}, status_code=500)
 
 @app.post("/toggle_debug")
 async def toggle_debug():
@@ -352,12 +382,11 @@ async def export_excel():
 async def reset():
     state.works, state.current_match, state.history, state.last_picked_ids = [], None, [], []
     state.last_sync_time = 0 
-    state.system_id = str(int(time.time())) # 更新系統 ID
+    state.system_id = str(int(time.time()))
     
     if os.path.exists(DATA_FILE): os.remove(DATA_FILE)
     if os.path.exists(HISTORY_FILE): os.remove(HISTORY_FILE)
     
-    # 清空圖片快取目錄
     extracted_images_dir = os.path.join(UPLOAD_DIR, "images")
     if os.path.exists(extracted_images_dir):
         shutil.rmtree(extracted_images_dir)
@@ -365,6 +394,8 @@ async def reset():
 
     try:
         state.gsheet.clear_all()
+        # 同步 System ID 到雲端
+        state.gsheet.save_system_id(state.system_id)
     except Exception as e:
         print(f"Reset GSheet Error: {e}")
         

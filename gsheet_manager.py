@@ -43,7 +43,7 @@ class GSheetManager:
                     pk = pk.replace('\\n', '\n')   # 處理單重轉義
                     
                     # 移除可能夾雜在金鑰中的任何非列印字元或多餘空格
-                    # 但要小心保留 PEM 的開頭與結尾標籤
+                    # 但要小心保留 PEM 的開頭與結換標籤
                     creds_dict["private_key"] = pk.strip()
                 
                 creds = Credentials.from_service_account_info(creds_dict, scopes=self.scope)
@@ -279,4 +279,26 @@ class GSheetManager:
             if r["key"] == "current_match":
                 val = r["value"]
                 return json.loads(val) if val else None
+        return None
+
+    def save_system_id(self, system_id: str):
+        ws = self._get_state_sheet()
+        records = ws.get_all_records()
+        row_idx = -1
+        for i, r in enumerate(records):
+            if r["key"] == "system_id":
+                row_idx = i + 2
+                break
+        
+        if row_idx > 0:
+            ws.update_cell(row_idx, 2, system_id)
+        else:
+            ws.append_row(["system_id", system_id])
+
+    def load_system_id(self) -> Optional[str]:
+        ws = self._get_state_sheet()
+        records = ws.get_all_records()
+        for r in records:
+            if r["key"] == "system_id":
+                return str(r["value"])
         return None
