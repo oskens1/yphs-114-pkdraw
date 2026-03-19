@@ -40,6 +40,16 @@ def admin_page():
     base_path = os.path.dirname(os.path.abspath(__file__))
     return FileResponse(os.path.join(base_path, "admin.html"))
 
+@app.get("/status")
+def old_status():
+    """攔截舊版 GSheet 請求"""
+    return {"error": "這是舊版連結，請重新整理網頁！", "system_id": "RELOAD_REQUIRED"}
+
+@app.post("/vote")
+def old_vote():
+    """攔截舊版 GSheet 投票"""
+    return {"error": "這是舊版投票介面，請重新整理網頁！"}
+
 @app.post("/admin/reset")
 async def reset_system():
     """重置系統：清空作品、投票紀錄與狀態"""
