@@ -44,13 +44,34 @@ class FirebaseManager:
                 
                 try:
                     creds_dict = json.loads(clean_json)
-                except json.JSONDecodeError:
-                    # 如果基本解析失敗，可能是因為 private_key 內部有真實換行導致格式損壞
-                    # 嘗試修復常見的 Private Key 換行損壞問題 (Vercel 後台貼上時常發生)
-                    if "private_key" in clean_json and "\\n" not in clean_json:
-                         # 這種情況代表 JSON 裡的 \n 被當成真正的換行，導致 JSON 格式失效
-                         pass # 交由外部 Exception 捕捉
-                    raise
+                except json.JSONDecodeError as je:
+                    # 如果基本解析失敗，可能是因為內部有真實換行導致格式損壞
+                    # 嘗試把所有真實換行都換成 \n 再次嘗試
+                    try:
+                        # 只有在解析失敗時才嘗試這種暴力替換
+                        brutal_json = clean_json.replace('\n', '\\n').replace('\r', '\\n')
+                        creds_dict = json.loads(brutal_json)
+                    except:
+                        raise je # 如果還是失敗，丟出原始的 JSONDecodeError
+                
+                # 針對 private_key 內容進行二次清洗：處理被換成空格的換行符
+                if "private_key" in creds_dict:
+                    pk = creds_dict["private_key"]
+                    # 如果金鑰中沒有換行符，但長度很長，很可能是原本的換行被變成了空格
+                    if "-----BEGIN PRIVATE KEY-----" in pk and "\n" not in pk[30:-30]:
+                        # 嘗試修復：將金鑰標籤中間的所有空格換回換行 (這是 PEM 的常見修復手段)
+                        header = "-----BEGIN PRIVATE KEY-----"
+                        footer = "-----END PRIVATE KEY-----"
+                        if pk.startswith(header) and pk.endswith(footer + "\n"):
+                             # 已經有換行的話就不動
+                             pass
+                        elif pk.startswith(header) and pk.endswith(footer):
+                            inner = pk[len(header):-len(footer)].strip()
+                            # 如果裡面全是空格分隔，試著把空格換回換行
+                            if " " in inner:
+                                fixed_inner = inner.replace(" ", "\n")
+                                creds_dict["private_key"] = f"{header}\n{fixed_inner}\n{footer}\n"
+                
                 
                 cred = credentials.Certificate(creds_dict)
                 firebase_admin.initialize_app(cred)
