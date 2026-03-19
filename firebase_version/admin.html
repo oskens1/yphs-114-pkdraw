@@ -9,21 +9,10 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
         body { font-family: 'Noto+Sans+TC', sans-serif; overflow: hidden; }
         .arena-img { height: 60vh; max-height: 700px; }
-        
-        /* Drawer Styles */
-        #ranking-drawer {
-            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: -10px 0 30px rgba(0,0,0,0.1);
-        }
+        #ranking-drawer { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: -10px 0 30px rgba(0,0,0,0.1); }
         .drawer-open { transform: translateX(0) !important; }
         .drawer-closed { transform: translateX(100%); }
-        
-        /* Tab Handle */
-        .drawer-handle {
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-        }
-
+        .drawer-handle { writing-mode: vertical-rl; text-orientation: mixed; }
         @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
     </style>
@@ -34,7 +23,7 @@
         <header class="bg-white px-8 py-4 shadow-sm border-b border-slate-200 flex justify-between items-center z-10">
             <div class="flex items-center gap-4">
                 <div class="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-red-200">紅</div>
-                <div class="text-2xl font-black text-slate-800 tracking-tighter">紅白對抗賽 <span class="text-slate-400 font-normal text-sm ml-2">控制台 v2.4</span></div>
+                <div class="text-2xl font-black text-slate-800 tracking-tighter">紅白對抗賽 <span class="text-slate-400 font-normal text-sm ml-2">控制台 v2.5</span></div>
             </div>
             <div class="flex items-center gap-6">
                 <div id="badge-status" class="px-6 py-2 rounded-full text-sm font-bold bg-slate-100 text-slate-400 tracking-widest transition-all uppercase">WAITING</div>
@@ -45,14 +34,10 @@
             <!-- Sidebar: Controls -->
             <aside class="w-72 bg-white border-r border-slate-200 p-6 overflow-y-auto space-y-8 z-10">
                 <section>
-                    <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">系統管理</h2>
-                    <div class="space-y-4">
-                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-                            <label class="block text-xs font-bold text-slate-500 mb-2">匯入作品 (PDF)</label>
-                            <input type="file" id="pdf-file" accept=".pdf" class="block w-full text-[10px] text-slate-500 mb-3">
-                            <button onclick="uploadPDF()" id="btn-upload" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-bold shadow-md transition-all">上傳檔案</button>
-                        </div>
-                        <button onclick="resetSystem()" class="w-full text-red-400 hover:text-red-600 text-xs font-medium transition-colors">⚠️ 重置全系統</button>
+                    <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">投票入口 QR Code</h2>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                        <img id="side-qr-img" src="" alt="QR Code" class="w-32 h-32 mx-auto mb-2 bg-white p-1 rounded-lg">
+                        <div class="text-[10px] font-mono text-blue-500 break-all truncate" id="side-link-text"></div>
                     </div>
                 </section>
 
@@ -64,12 +49,14 @@
                     </div>
                 </section>
 
-                <div class="pt-8 text-center border-t border-slate-50">
-                    <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                        <div class="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Voting Origin</div>
-                        <div id="vote-link-display" class="text-[10px] font-mono text-blue-400 break-all select-all"></div>
+                <section>
+                    <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">系統管理</h2>
+                    <div class="space-y-2">
+                        <input type="file" id="pdf-file" accept=".pdf" class="block w-full text-[10px] text-slate-500 mb-2">
+                        <button onclick="uploadPDF()" id="btn-upload" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold transition-all">上傳作品 PDF</button>
+                        <button onclick="resetSystem()" class="w-full text-red-400 hover:text-red-600 text-[10px] font-medium pt-4">重置系統</button>
                     </div>
-                </div>
+                </section>
             </aside>
 
             <!-- Main Content: Arena -->
@@ -125,29 +112,26 @@
 
                 <!-- Waiting with QR -->
                 <div id="live-waiting" class="flex-1 flex flex-col items-center justify-center text-center p-8 animate-fade-in">
-                    <div class="bg-white p-10 rounded-[4rem] shadow-2xl border border-slate-100 mb-10 relative">
-                        <div class="text-xs font-black text-slate-300 uppercase tracking-[0.4em] mb-6 leading-none">Scan to enter voting arena</div>
-                        <div class="bg-slate-50 p-6 rounded-[2.5rem] inline-block border-2 border-slate-50/50">
-                            <img id="qr-code-img" src="" alt="QR Code" class="w-64 h-64 mx-auto">
+                    <div class="bg-white p-12 rounded-[5rem] shadow-2xl border-4 border-slate-50 mb-10 relative">
+                        <div class="text-xs font-black text-slate-300 uppercase tracking-[0.5em] mb-8">Scan to enter voting arena</div>
+                        <div class="bg-slate-50 p-8 rounded-[3rem] inline-block border-2 border-slate-100 shadow-inner">
+                            <img id="qr-code-img" src="" alt="QR Code" class="w-80 h-80 mx-auto">
                         </div>
-                        <div id="vote-link-text" class="mt-8 text-blue-600 font-black text-2xl tracking-tighter"></div>
-                        <div class="absolute -top-4 -right-4 w-14 h-14 bg-red-500 text-white rounded-full flex items-center justify-center font-black text-sm shadow-xl animate-bounce">GO!</div>
+                        <div id="vote-link-text" class="mt-8 text-blue-600 font-black text-3xl tracking-tighter"></div>
+                        <div class="absolute -top-4 -right-4 w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center font-black text-lg shadow-xl animate-bounce">SCAN</div>
                     </div>
-                    <h2 class="text-6xl font-black text-slate-800 tracking-tighter mb-4 italic leading-tight">等待對決開始...</h2>
-                    <p class="text-slate-300 text-xl font-bold uppercase tracking-[0.3em]">Next Round Pairing In Progress</p>
+                    <h2 class="text-6xl font-black text-slate-800 tracking-tighter mb-4 italic leading-tight">等待下一回合對決...</h2>
+                    <p class="text-slate-300 text-xl font-bold uppercase tracking-[0.3em]">Ready for Next Battle</p>
                 </div>
             </main>
 
-            <!-- Ranking Side Drawer (The "頁籤" Request) -->
+            <!-- Ranking Side Drawer -->
             <div id="ranking-drawer" class="drawer-closed fixed top-0 right-0 h-full w-[450px] bg-white z-40 flex">
-                <!-- Tab Handle -->
                 <button onclick="toggleDrawer()" class="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 bg-slate-800 hover:bg-slate-900 text-white px-3 py-10 rounded-l-3xl shadow-2xl flex flex-col items-center gap-4 transition-all">
                     <span class="text-lg">🏆</span>
                     <span class="drawer-handle text-sm font-black tracking-widest uppercase py-2">積分排行榜</span>
                     <span id="drawer-arrow" class="transition-transform duration-300">◀</span>
                 </button>
-
-                <!-- Drawer Content -->
                 <div class="flex-1 flex flex-col p-8 overflow-hidden bg-white">
                     <div class="flex items-center gap-3 mb-8 pb-4 border-b border-slate-100">
                         <span class="text-3xl">📊</span>
@@ -163,15 +147,8 @@
                                     <th class="pb-4 font-bold text-right">Win%</th>
                                 </tr>
                             </thead>
-                            <tbody id="ranking-list" class="text-sm">
-                                <!-- JS Content -->
-                            </tbody>
+                            <tbody id="ranking-list" class="text-sm"></tbody>
                         </table>
-                    </div>
-                    <div class="mt-auto pt-6 border-t border-slate-50 text-center">
-                        <div class="inline-block px-4 py-1 bg-emerald-50 rounded-full text-[10px] font-black text-emerald-600 tracking-widest uppercase">
-                             ● Live Syncing
-                        </div>
                     </div>
                 </div>
             </div>
@@ -197,21 +174,25 @@
 
         let currentMatchId = null;
 
-        // QR Code & Link display
-        window.addEventListener('DOMContentLoaded', () => {
-            const qrImg = document.getElementById('qr-code-img');
+        // QR Code Generation (Using Google Chart API for better stability)
+        function generateQRCode() {
             const voteUrl = window.location.origin;
-            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(voteUrl)}`;
+            const encodedUrl = encodeURIComponent(voteUrl);
+            const qrUrl = `https://chart.googleapis.com/chart?chs=400x400&cht=qr&chl=${encodedUrl}&choe=UTF-8`;
+            
+            document.getElementById('qr-code-img').src = qrUrl;
+            document.getElementById('side-qr-img').src = qrUrl;
             document.getElementById('vote-link-text').innerText = voteUrl.replace(/^https?:\/\//, '');
-            document.getElementById('vote-link-display').innerText = voteUrl;
-        });
+            document.getElementById('side-link-text').innerText = voteUrl;
+        }
+
+        window.addEventListener('DOMContentLoaded', generateQRCode);
 
         // Toggle Drawer
         window.toggleDrawer = () => {
             const drawer = document.getElementById('ranking-drawer');
             const arrow = document.getElementById('drawer-arrow');
             const isOpen = drawer.classList.contains('drawer-open');
-            
             if (isOpen) {
                 drawer.classList.remove('drawer-open');
                 arrow.style.transform = 'rotate(0deg)';
@@ -241,8 +222,7 @@
                         <td class="py-4 font-bold text-slate-700">${w.id}</td>
                         <td class="py-4 font-mono font-black text-blue-600 text-right">${w.elo}</td>
                         <td class="py-4 text-right text-slate-500 font-bold">${winRate}%</td>
-                    </tr>
-                `;
+                    </tr>`;
             });
         });
 
@@ -258,14 +238,11 @@
                     if (doc.data().choice === 'A') votesA++;
                     else votesB++;
                 });
-                
                 document.getElementById('count-A').innerText = votesA;
                 document.getElementById('count-B').innerText = votesB;
-                
                 const total = votesA + votesB;
                 const percentA = total > 0 ? Math.round((votesA / total) * 100) : 50;
                 const percentB = total > 0 ? Math.round((votesB / total) * 100) : 50;
-                
                 document.getElementById('bar-A').style.width = percentA + '%';
                 document.getElementById('bar-B').style.width = percentB + '%';
                 document.getElementById('percent-A').innerText = percentA + '%';
@@ -276,7 +253,6 @@
         function updateUI(data) {
             const badge = document.getElementById('badge-status');
             badge.innerText = data.status.toUpperCase();
-            
             if (data.status === 'voting') {
                 document.getElementById('live-voting').classList.remove('hidden');
                 document.getElementById('live-waiting').classList.add('hidden');
@@ -320,7 +296,7 @@
                 alert("上傳失敗");
             } finally {
                 btn.disabled = false;
-                btn.innerText = "上傳檔案";
+                btn.innerText = "上傳作品 PDF";
             }
         };
 
