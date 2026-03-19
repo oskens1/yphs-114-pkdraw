@@ -25,7 +25,12 @@ app.add_middleware(
 
 cloudinary_mgr = CloudinaryManager()
 
-UPLOAD_DIR = "uploads"
+# 在 Vercel 環境中，必須使用 /tmp 資料夾進行檔案寫入
+if os.getenv("VERCEL"):
+    UPLOAD_DIR = "/tmp/uploads"
+else:
+    UPLOAD_DIR = "uploads"
+
 IMAGE_DIR = os.path.join(UPLOAD_DIR, "images")
 os.makedirs(IMAGE_DIR, exist_ok=True)
 
