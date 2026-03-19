@@ -3,6 +3,4 @@ uvicorn
 firebase-admin
 python-multipart
 cloudinary
-pillow
 python-dotenv
-PyMuPDF

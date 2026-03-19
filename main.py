@@ -1,6 +1,7 @@
 import os
 import uuid
 import random
+import datetime
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,8 @@ from firebase_manager import firebase_manager
 from cloudinary_manager import CloudinaryManager
 from pdf_utils import process_pdf
 from models import WorkItem, EloManager
+
+APP_VERSION = "v2.5.3"
 
 app = FastAPI(title="紅白對抗賽 Firebase 版")
 
@@ -34,16 +37,39 @@ else:
 IMAGE_DIR = os.path.join(UPLOAD_DIR, "images")
 os.makedirs(IMAGE_DIR, exist_ok=True)
 
+# 強制不快取的標頭
+CACHE_CONTROL_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+@app.get("/version")
+def check_version():
+    """用來從 Vercel 端驗證部署是否成功"""
+    return {
+        "version": APP_VERSION,
+        "server_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "status": "Vercel Deployment Active",
+        "cache_busting": "Enabled"
+    }
+
 @app.get("/")
 def student_page():
     # 使用絕對路徑確保 Vercel 能找到檔案
     base_path = os.path.dirname(os.path.abspath(__file__))
-    return FileResponse(os.path.join(base_path, "index.html"))
+    return FileResponse(
+        os.path.join(base_path, "index.html"),
+        headers=CACHE_CONTROL_HEADERS
+    )
 
 @app.get("/admin")
 def admin_page():
     base_path = os.path.dirname(os.path.abspath(__file__))
-    return FileResponse(os.path.join(base_path, "admin.html"))
+    return FileResponse(
+        os.path.join(base_path, "admin.html"),
+        headers=CACHE_CONTROL_HEADERS
+    )
 
 @app.get("/status")
 def old_status():

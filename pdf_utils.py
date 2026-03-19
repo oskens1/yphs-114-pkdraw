@@ -1,12 +1,17 @@
 import os
-import fitz  # PyMuPDF
 from typing import List
 from models import WorkItem
 
 def process_pdf(pdf_path: str, output_dir: str) -> List[WorkItem]:
     """
     將 PDF 拆成單頁圖片，並返回 WorkItem 列表 (暫時 image_url 為本地路徑)
+    採用延遲載入 (Lazy Import) 確保 Vercel 雲端環境若未安裝 PyMuPDF 時仍能啟動。
     """
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        raise Exception("本地環境未安裝 PyMuPDF (fitz) 套件，無法進行 PDF 切割。請在終端機執行 'pip install PyMuPDF'。")
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
     
