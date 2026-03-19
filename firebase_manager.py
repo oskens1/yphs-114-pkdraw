@@ -75,24 +75,26 @@ class FirebaseManager:
 
     @property
     def db(self):
+        if self._db is None:
+            raise Exception("Firebase Firestore 資料庫未成功初始化。請檢查 Vercel 環境變數 FIREBASE_SERVICE_ACCOUNT 是否為正確的單行 JSON 格式。")
         return self._db
 
     # --- Works Management ---
     def add_work(self, work_data):
         """Add or update a work in the 'works' collection."""
         work_id = str(work_data.get('id'))
-        self._db.collection('works').document(work_id).set(work_data)
+        self.db.collection('works').document(work_id).set(work_data)
 
     def get_all_works(self):
         """Fetch all works from Firestore."""
-        works_ref = self._db.collection('works')
+        works_ref = self.db.collection('works')
         docs = works_ref.stream()
         return [doc.to_dict() for doc in docs]
 
     def clear_works(self):
         """Delete all works in the collection."""
-        batch = self._db.batch()
-        docs = self._db.collection('works').list_documents()
+        batch = self.db.batch()
+        docs = self.db.collection('works').list_documents()
         for doc in docs:
             batch.delete(doc)
         batch.commit()
@@ -100,14 +102,14 @@ class FirebaseManager:
     # --- System State Management ---
     def get_system_state(self):
         """Retrieve the current system state."""
-        doc = self._db.collection('system').document('current').get()
+        doc = self.db.collection('system').document('current').get()
         if doc.exists:
             return doc.to_dict()
         return None
 
     def update_system_state(self, state_data):
         """Update the system state (e.g., status, match_A, match_B, system_id)."""
-        self._db.collection('system').document('current').set(state_data, merge=True)
+        self.db.collection('system').document('current').set(state_data, merge=True)
 
     # --- Voting ---
     def submit_vote(self, match_id, choice, team):
@@ -118,11 +120,11 @@ class FirebaseManager:
             'team': team,     # 'red' or 'white' (voter's team)
             'timestamp': firestore.SERVER_TIMESTAMP
         }
-        self._db.collection('votes').add(vote_data)
+        self.db.collection('votes').add(vote_data)
 
     def get_votes_for_match(self, match_id):
         """Aggregate votes for a specific match ID."""
-        votes_ref = self._db.collection('votes').where('match_id', '==', match_id)
+        votes_ref = self.db.collection('votes').where('match_id', '==', match_id)
         docs = votes_ref.stream()
         
         results = {'A': 0, 'B': 0}
@@ -134,7 +136,7 @@ class FirebaseManager:
     # --- History ---
     def add_history(self, round_data):
         """Archive a finished round."""
-        self._db.collection('history').add(round_data)
+        self.db.collection('history').add(round_data)
 
 # Singleton instance
 firebase_manager = FirebaseManager()
