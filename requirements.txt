@@ -5,3 +5,4 @@ python-multipart
 cloudinary
 pillow
 python-dotenv
+PyMuPDF

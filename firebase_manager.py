@@ -32,7 +32,26 @@ class FirebaseManager:
         
         if firebase_creds_json:
             try:
-                creds_dict = json.loads(firebase_creds_json)
+                # 強化 JSON 解析邏輯：處理 Vercel 可能的換行轉義與單引號問題
+                clean_json = firebase_creds_json.strip()
+                
+                # 1. 處理常見的轉義換行
+                clean_json = clean_json.replace('\\n', '\n')
+                
+                # 2. 如果 JSON 被單引號包圍，嘗試移除
+                if clean_json.startswith("'") and clean_json.endswith("'"):
+                    clean_json = clean_json[1:-1]
+                
+                try:
+                    creds_dict = json.loads(clean_json)
+                except json.JSONDecodeError:
+                    # 如果基本解析失敗，可能是因為 private_key 內部有真實換行導致格式損壞
+                    # 嘗試修復常見的 Private Key 換行損壞問題 (Vercel 後台貼上時常發生)
+                    if "private_key" in clean_json and "\\n" not in clean_json:
+                         # 這種情況代表 JSON 裡的 \n 被當成真正的換行，導致 JSON 格式失效
+                         pass # 交由外部 Exception 捕捉
+                    raise
+                
                 cred = credentials.Certificate(creds_dict)
                 firebase_admin.initialize_app(cred)
                 self._db = firestore.client()
@@ -40,6 +59,9 @@ class FirebaseManager:
                 return
             except Exception as e:
                 print(f"Failed to initialize from env: {e}")
+                # 額外偵錯：顯示字串前幾位確認格式 (不顯示私鑰以保安全)
+                if firebase_creds_json:
+                    print(f"Env string start with: {firebase_creds_json[:20]}...")
 
         # 次之尋找本地檔案
         key_path = "pk-draw-firebase-adminsdk-fbsvc-65d71e3f1c.json"
