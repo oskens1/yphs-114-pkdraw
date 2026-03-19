@@ -7,29 +7,43 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
-        body { font-family: 'Noto+Sans+TC', sans-serif; overflow-x: hidden; }
+        body { font-family: 'Noto+Sans+TC', sans-serif; overflow: hidden; }
         .arena-img { height: 60vh; max-height: 700px; }
-        .modal { transition: opacity 0.25s ease; }
-        body.modal-active { overflow: hidden; }
+        
+        /* Drawer Styles */
+        #ranking-drawer {
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: -10px 0 30px rgba(0,0,0,0.1);
+        }
+        .drawer-open { transform: translateX(0) !important; }
+        .drawer-closed { transform: translateX(100%); }
+        
+        /* Tab Handle */
+        .drawer-handle {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen">
-    <div class="flex flex-col h-screen">
+    <div class="flex flex-col h-screen relative overflow-hidden">
         <!-- Header -->
         <header class="bg-white px-8 py-4 shadow-sm border-b border-slate-200 flex justify-between items-center z-10">
             <div class="flex items-center gap-4">
                 <div class="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-red-200">紅</div>
-                <div class="text-2xl font-black text-slate-800 tracking-tighter">紅白對抗賽 <span class="text-slate-400 font-normal text-sm ml-2">控制台 v2.2</span></div>
+                <div class="text-2xl font-black text-slate-800 tracking-tighter">紅白對抗賽 <span class="text-slate-400 font-normal text-sm ml-2">控制台 v2.4</span></div>
             </div>
             <div class="flex items-center gap-6">
-                <div id="badge-status" class="px-6 py-2 rounded-full text-sm font-bold bg-slate-100 text-slate-400 tracking-widest transition-all">WAITING</div>
-                <button onclick="toggleModal()" class="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-full font-bold shadow-lg transition-all active:scale-95">🏆 積分排行榜</button>
+                <div id="badge-status" class="px-6 py-2 rounded-full text-sm font-bold bg-slate-100 text-slate-400 tracking-widest transition-all uppercase">WAITING</div>
             </div>
         </header>
 
-        <div class="flex flex-1 overflow-hidden">
+        <div class="flex flex-1 overflow-hidden relative">
             <!-- Sidebar: Controls -->
-            <aside class="w-72 bg-white border-r border-slate-200 p-6 overflow-y-auto space-y-8">
+            <aside class="w-72 bg-white border-r border-slate-200 p-6 overflow-y-auto space-y-8 z-10">
                 <section>
                     <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">系統管理</h2>
                     <div class="space-y-4">
@@ -50,20 +64,23 @@
                     </div>
                 </section>
 
-                <div class="pt-8 text-center">
-                    <div class="inline-block px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Real-time Dashboard</div>
+                <div class="pt-8 text-center border-t border-slate-50">
+                    <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                        <div class="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Voting Origin</div>
+                        <div id="vote-link-display" class="text-[10px] font-mono text-blue-400 break-all select-all"></div>
+                    </div>
                 </div>
             </aside>
 
             <!-- Main Content: Arena -->
-            <main class="flex-1 bg-slate-50 overflow-y-auto p-4 flex flex-col">
+            <main class="flex-1 bg-slate-50 overflow-y-auto p-4 flex flex-col relative">
                 <div id="live-voting" class="hidden flex-1 flex flex-col">
                     <div class="flex-1 flex items-center justify-around gap-4 px-4">
-                        <!-- Red Team (Match A) -->
+                        <!-- Red Team -->
                         <div class="flex-1 flex flex-col items-center">
                             <div class="mb-4 flex items-center gap-2">
-                                <span class="px-6 py-2 bg-red-600 text-white rounded-full text-xl font-black shadow-lg shadow-red-200">紅隊</span>
-                                <span id="label-A" class="text-3xl font-black text-slate-700"></span>
+                                <span class="px-6 py-2 bg-red-600 text-white rounded-full text-xl font-black shadow-lg">紅隊</span>
+                                <span id="label-A" class="text-3xl font-black text-slate-700 tracking-tighter"></span>
                             </div>
                             <div class="w-full relative">
                                 <img id="img-A" src="" class="arena-img w-full object-contain bg-white rounded-3xl border-4 border-red-500 shadow-2xl p-2">
@@ -74,14 +91,14 @@
                         </div>
 
                         <div class="px-4">
-                            <div class="text-6xl font-black text-slate-200 italic">VS</div>
+                            <div class="text-7xl font-black text-slate-200 italic tracking-tighter">VS</div>
                         </div>
 
-                        <!-- White Team (Match B) -->
+                        <!-- White Team -->
                         <div class="flex-1 flex flex-col items-center">
                             <div class="mb-4 flex items-center gap-2">
-                                <span class="px-6 py-2 bg-slate-300 text-slate-800 rounded-full text-xl font-black shadow-lg shadow-slate-200">白隊</span>
-                                <span id="label-B" class="text-3xl font-black text-slate-700"></span>
+                                <span class="px-6 py-2 bg-slate-300 text-slate-800 rounded-full text-xl font-black shadow-lg">白隊</span>
+                                <span id="label-B" class="text-3xl font-black text-slate-700 tracking-tighter"></span>
                             </div>
                             <div class="w-full relative">
                                 <img id="img-B" src="" class="arena-img w-full object-contain bg-white rounded-3xl border-4 border-slate-300 shadow-2xl p-2">
@@ -92,61 +109,70 @@
                         </div>
                     </div>
 
-                    <!-- Progress & Voting info -->
-                    <div class="mt-12 px-12 pb-8">
-                        <div class="bg-slate-200 h-8 rounded-full overflow-hidden flex shadow-inner border-4 border-white">
+                    <!-- Progress Bar -->
+                    <div class="mt-12 px-20 pb-8">
+                        <div class="bg-slate-200 h-10 rounded-full overflow-hidden flex shadow-inner border-4 border-white">
                             <div id="bar-A" class="bg-red-500 transition-all duration-700 ease-out" style="width: 50%"></div>
                             <div id="bar-B" class="bg-slate-400 transition-all duration-700 ease-out" style="width: 50%"></div>
                         </div>
-                        <div class="flex justify-between text-xl font-black text-slate-400 mt-4 px-2 uppercase tracking-widest">
+                        <div class="flex justify-between text-2xl font-black text-slate-400 mt-4 px-2 uppercase tracking-widest">
                             <span id="percent-A">50%</span>
-                            <span class="text-sm">即時戰況比</span>
+                            <span class="text-sm tracking-[0.5em] font-bold">LIVE VOTING</span>
                             <span id="percent-B">50%</span>
                         </div>
                     </div>
                 </div>
 
-                <div id="live-waiting" class="flex-1 flex flex-col items-center justify-center text-center">
-                    <div class="w-32 h-32 bg-white rounded-full flex items-center justify-center text-5xl shadow-xl mb-8 animate-pulse">🥊</div>
-                    <h2 class="text-4xl font-black text-slate-300 italic">等待下一回合對決...</h2>
-                    <p class="text-slate-400 mt-4 text-xl">請點擊左側「開始新回合」進行隨機配對</p>
+                <!-- Waiting with QR -->
+                <div id="live-waiting" class="flex-1 flex flex-col items-center justify-center text-center p-8 animate-fade-in">
+                    <div class="bg-white p-10 rounded-[4rem] shadow-2xl border border-slate-100 mb-10 relative">
+                        <div class="text-xs font-black text-slate-300 uppercase tracking-[0.4em] mb-6 leading-none">Scan to enter voting arena</div>
+                        <div class="bg-slate-50 p-6 rounded-[2.5rem] inline-block border-2 border-slate-50/50">
+                            <img id="qr-code-img" src="" alt="QR Code" class="w-64 h-64 mx-auto">
+                        </div>
+                        <div id="vote-link-text" class="mt-8 text-blue-600 font-black text-2xl tracking-tighter"></div>
+                        <div class="absolute -top-4 -right-4 w-14 h-14 bg-red-500 text-white rounded-full flex items-center justify-center font-black text-sm shadow-xl animate-bounce">GO!</div>
+                    </div>
+                    <h2 class="text-6xl font-black text-slate-800 tracking-tighter mb-4 italic leading-tight">等待對決開始...</h2>
+                    <p class="text-slate-300 text-xl font-bold uppercase tracking-[0.3em]">Next Round Pairing In Progress</p>
                 </div>
             </main>
-        </div>
-    </div>
 
-    <!-- Ranking Modal -->
-    <div id="ranking-modal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
-        <div class="modal-overlay absolute w-full h-full bg-slate-900 opacity-80 backdrop-blur-sm" onclick="toggleModal()"></div>
-        
-        <div class="modal-container bg-white w-11/12 md:max-w-3xl mx-auto rounded-[2rem] shadow-2xl z-50 overflow-y-auto max-h-[85vh] animate-fade-in">
-            <div class="modal-content py-8 text-left px-10">
-                <div class="flex justify-between items-center pb-6 border-b border-slate-100">
-                    <div class="flex items-center gap-3">
-                        <span class="text-3xl">🏆</span>
-                        <p class="text-3xl font-black text-slate-800 uppercase tracking-tighter">積分排行榜</p>
-                    </div>
-                    <div class="modal-close cursor-pointer z-50 p-2 hover:bg-slate-100 rounded-full" onclick="toggleModal()">
-                        <svg class="fill-current text-slate-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 18 18">
-                            <path d="M14.53 4.53l-1.06-1.06L9 7.94 4.53 3.47 3.47 4.53 7.94 9l-4.47 4.47 1.06 1.06L9 10.06l4.47 4.47 1.06-1.06L10.06 9z"></path>
-                        </svg>
-                    </div>
-                </div>
+            <!-- Ranking Side Drawer -->
+            <div id="ranking-drawer" class="drawer-closed fixed top-0 right-0 h-full w-[450px] bg-white z-40 flex">
+                <!-- Tab Handle -->
+                <button onclick="toggleDrawer()" class="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 bg-slate-800 hover:bg-slate-900 text-white px-3 py-10 rounded-l-3xl shadow-2xl flex flex-col items-center gap-4 transition-all">
+                    <span class="text-lg">🏆</span>
+                    <span class="drawer-handle text-sm font-black tracking-widest uppercase py-2">積分排行榜</span>
+                    <span id="drawer-arrow" class="transition-transform duration-300">◀</span>
+                </button>
 
-                <div class="my-6">
-                    <table class="w-full text-left">
-                        <thead>
-                            <tr class="text-xs text-slate-400 uppercase tracking-widest border-b">
-                                <th class="py-4 font-bold">Rank</th>
-                                <th class="py-4 font-bold">作品 ID</th>
-                                <th class="py-4 font-bold text-right text-blue-600">ELO 積分</th>
-                                <th class="py-4 font-bold text-right">勝率 / 戰數</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ranking-list" class="text-lg">
-                            <!-- JS content -->
-                        </tbody>
-                    </table>
+                <!-- Drawer Content -->
+                <div class="flex-1 flex flex-col p-8 overflow-hidden bg-white">
+                    <div class="flex items-center gap-3 mb-8 pb-4 border-b border-slate-100">
+                        <span class="text-3xl">📊</span>
+                        <h2 class="text-2xl font-black text-slate-800">ELO 積分排名</h2>
+                    </div>
+                    <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-[10px] text-slate-400 border-b uppercase tracking-widest">
+                                    <th class="pb-4 font-bold">Rank</th>
+                                    <th class="pb-4 font-bold">ID</th>
+                                    <th class="pb-4 font-bold text-right text-blue-600">ELO</th>
+                                    <th class="pb-4 font-bold text-right">Win%</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ranking-list" class="text-sm">
+                                <!-- JS Content -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-auto pt-6 border-t border-slate-50 text-center">
+                        <div class="inline-block px-4 py-1 bg-emerald-50 rounded-full text-[10px] font-black text-emerald-600 tracking-widest uppercase">
+                             ● Live Syncing
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -171,10 +197,34 @@
 
         let currentMatchId = null;
 
+        // QR Code Logic
+        window.addEventListener('DOMContentLoaded', () => {
+            const qrImg = document.getElementById('qr-code-img');
+            const voteUrl = window.location.origin;
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(voteUrl)}`;
+            document.getElementById('vote-link-text').innerText = voteUrl.replace(/^https?:\/\//, '');
+            document.getElementById('vote-link-display').innerText = voteUrl;
+        });
+
+        // Toggle Drawer
+        window.toggleDrawer = () => {
+            const drawer = document.getElementById('ranking-drawer');
+            const arrow = document.getElementById('drawer-arrow');
+            const isOpen = drawer.classList.contains('drawer-open');
+            
+            if (isOpen) {
+                drawer.classList.remove('drawer-open');
+                arrow.style.transform = 'rotate(0deg)';
+            } else {
+                drawer.classList.add('drawer-open');
+                arrow.style.transform = 'rotate(180deg)';
+            }
+        };
+
         // Listen to system state
-        onSnapshot(doc(db, "system", "current"), (doc) => {
-            if (!doc.exists()) return;
-            const data = doc.data();
+        onSnapshot(doc(db, "system", "current"), (docSnap) => {
+            if (!docSnap.exists()) return;
+            const data = docSnap.data();
             updateUI(data);
         });
 
@@ -187,13 +237,10 @@
                 const winRate = w.match_count > 0 ? Math.round((w.win_count / w.match_count) * 100) : 0;
                 list.innerHTML += `
                     <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                        <td class="py-4"><span class="w-8 h-8 flex items-center justify-center rounded-full ${index < 3 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'} font-black text-sm">${index + 1}</span></td>
+                        <td class="py-4"><span class="w-7 h-7 flex items-center justify-center rounded-full ${index < 3 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'} font-black text-xs">${index + 1}</span></td>
                         <td class="py-4 font-bold text-slate-700">${w.id}</td>
                         <td class="py-4 font-mono font-black text-blue-600 text-right">${w.elo}</td>
-                        <td class="py-4 text-right">
-                            <span class="font-bold text-slate-700">${winRate}%</span>
-                            <span class="text-xs text-slate-300 ml-1">(${w.match_count}戰)</span>
-                        </td>
+                        <td class="py-4 text-right text-slate-500 font-bold">${winRate}%</td>
                     </tr>
                 `;
             });
@@ -235,12 +282,9 @@
                 document.getElementById('live-waiting').classList.add('hidden');
                 document.getElementById('label-A').innerText = data.match_A.id;
                 document.getElementById('label-B').innerText = data.match_B.id;
-                
                 document.getElementById('img-A').src = data.match_A.image_url;
                 document.getElementById('img-B').src = data.match_B.image_url;
-                
-                badge.className = "px-6 py-2 rounded-full text-sm font-black bg-emerald-500 text-white shadow-lg shadow-emerald-100 tracking-widest";
-                
+                badge.className = "px-6 py-2 rounded-full text-sm font-black bg-emerald-500 text-white shadow-lg shadow-emerald-100 tracking-widest uppercase";
                 if (currentMatchId !== data.match_id) {
                     currentMatchId = data.match_id;
                     listenToVotes(currentMatchId);
@@ -250,15 +294,6 @@
                 document.getElementById('live-waiting').classList.remove('hidden');
                 badge.className = "px-6 py-2 rounded-full text-sm font-bold bg-slate-100 text-slate-400 shadow-sm tracking-widest uppercase";
             }
-        }
-
-        // Modal toggle
-        window.toggleModal = () => {
-            const body = document.querySelector('body');
-            const modal = document.querySelector('#ranking-modal');
-            modal.classList.toggle('opacity-0');
-            modal.classList.toggle('pointer-events-none');
-            body.classList.toggle('modal-active');
         }
 
         // Admin Functions
@@ -274,7 +309,7 @@
             if (fileInput.files.length === 0) return alert("請選擇檔案");
             const btn = document.getElementById('btn-upload');
             btn.disabled = true;
-            btn.innerText = "正在處理中...";
+            btn.innerText = "Processing...";
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
             try {
