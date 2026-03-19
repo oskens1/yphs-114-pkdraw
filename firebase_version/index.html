@@ -3,76 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>紅白對抗賽 - 投票系統</title>
+    <title>作品競賽擂台 - 投票系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .work-img { height: 300px; object-fit: contain; }
-        .red-team { border-color: #ef4444; }
-        .white-team { border-color: #e2e8f0; }
-        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fade-in { animation: fade-in 0.5s ease-out; }
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body { font-family: 'Noto+Sans+TC', sans-serif; }
+        .work-img { height: 350px; object-fit: contain; }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+<body class="bg-slate-100 min-h-screen flex flex-col items-center p-4">
     <div id="app" class="w-full max-w-md">
-        <header class="text-center mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">紅白對抗賽</h1>
-            <p id="status-text" class="text-gray-600 mt-2 italic">等待系統啟動...</p>
+        <header class="text-center mt-4 mb-8">
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">作品競賽<span class="text-blue-600">擂台</span></h1>
+            <div id="status-container" class="mt-2">
+                <span id="status-text" class="text-xs font-bold bg-white px-4 py-1 rounded-full text-slate-400 shadow-sm border border-slate-200 inline-block">正在連線至伺服器...</span>
+            </div>
         </header>
 
         <!-- Waiting View -->
-        <div id="view-waiting" class="view hidden text-center p-10 bg-white rounded-xl shadow-lg">
-            <div class="animate-bounce text-5xl mb-4">🎨</div>
-            <p class="text-xl font-medium">請稍候，下一場對決即將開始...</p>
+        <div id="view-waiting" class="view hidden text-center p-12 bg-white rounded-3xl shadow-xl border border-slate-100 animate-fade-in">
+            <div class="relative w-20 h-20 mx-auto mb-6">
+                <div class="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-20"></div>
+                <div class="relative bg-white rounded-full w-20 h-20 flex items-center justify-center text-4xl shadow-sm border border-slate-50">🎨</div>
+            </div>
+            <p class="text-xl font-black text-slate-700">準備中...</p>
+            <p class="text-slate-400 mt-2">下一場對決即將展開，請稍候</p>
         </div>
 
         <!-- Voting View -->
-        <div id="view-voting" class="view hidden animate-fade-in">
+        <div id="view-voting" class="view hidden space-y-6">
             <div class="grid grid-cols-1 gap-6">
-                <!-- Match A (Red) -->
-                <div id="card-A" onclick="vote('A')" class="bg-white p-4 rounded-xl shadow-md border-t-8 red-team cursor-pointer active:scale-95 transition-transform">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">紅隊</span>
-                        <span id="id-A" class="text-gray-500 font-mono"></span>
+                <!-- Match A -->
+                <div id="card-A" onclick="vote('A')" class="group bg-white p-5 rounded-3xl shadow-lg border-2 border-transparent hover:border-blue-500 transition-all cursor-pointer active:scale-95">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="bg-blue-600 text-white px-4 py-1 rounded-full text-xs font-black tracking-widest uppercase">Work A</span>
+                        <span id="id-A" class="text-slate-300 font-black text-sm"></span>
                     </div>
-                    <img id="img-A" src="" class="work-img w-full rounded-lg bg-gray-50">
+                    <div class="bg-slate-50 rounded-2xl overflow-hidden mb-2">
+                        <img id="img-A" src="" class="work-img w-full transition-transform group-hover:scale-105">
+                    </div>
+                    <div class="text-center py-2 text-blue-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity">點擊投給 A</div>
                 </div>
 
-                <div class="flex items-center justify-center my-2">
-                    <span class="bg-gray-800 text-white px-4 py-2 rounded-full font-black italic">VS</span>
+                <div class="flex items-center justify-center">
+                    <div class="h-[2px] bg-slate-200 flex-1"></div>
+                    <span class="bg-slate-800 text-white px-6 py-2 rounded-full font-black italic text-xl shadow-lg mx-4">VS</span>
+                    <div class="h-[2px] bg-slate-200 flex-1"></div>
                 </div>
 
-                <!-- Match B (White) -->
-                <div id="card-B" onclick="vote('B')" class="bg-white p-4 rounded-xl shadow-md border-t-8 white-team cursor-pointer active:scale-95 transition-transform">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-sm font-bold">白隊</span>
-                        <span id="id-B" class="text-gray-500 font-mono"></span>
+                <!-- Match B -->
+                <div id="card-B" onclick="vote('B')" class="group bg-white p-5 rounded-3xl shadow-lg border-2 border-transparent hover:border-indigo-500 transition-all cursor-pointer active:scale-95">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="bg-indigo-600 text-white px-4 py-1 rounded-full text-xs font-black tracking-widest uppercase">Work B</span>
+                        <span id="id-B" class="text-slate-300 font-black text-sm"></span>
                     </div>
-                    <img id="img-B" src="" class="work-img w-full rounded-lg bg-gray-50">
+                    <div class="bg-slate-50 rounded-2xl overflow-hidden mb-2">
+                        <img id="img-B" src="" class="work-img w-full transition-transform group-hover:scale-105">
+                    </div>
+                    <div class="text-center py-2 text-indigo-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity">點擊投給 B</div>
                 </div>
             </div>
-            <p class="text-center mt-6 text-gray-500 text-sm">點擊作品即可投票</p>
+            <div class="text-center mt-8 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                <p class="text-blue-600 font-bold text-sm">🏆 點擊心目中更優秀的作品即可完成投票</p>
+            </div>
         </div>
 
         <!-- Result View -->
         <div id="view-result" class="view hidden text-center animate-fade-in">
-            <div class="bg-white p-8 rounded-xl shadow-lg mb-6">
-                <h2 class="text-2xl font-bold mb-4">本回合結束！</h2>
-                <div id="result-detail" class="text-lg text-gray-700"></div>
-                <div class="mt-6">
-                     <div class="text-6xl" id="winner-emoji">🏆</div>
+            <div class="bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-100 mb-8">
+                <div class="text-xs font-black text-slate-300 uppercase tracking-[0.2em] mb-4">Round Results</div>
+                <h2 class="text-3xl font-black text-slate-800 mb-6">本回合對決結束</h2>
+                <div id="result-detail" class="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <!-- JS detail here -->
+                </div>
+                <div class="mt-8">
+                     <div class="text-7xl drop-shadow-lg" id="winner-emoji">🏆</div>
                 </div>
             </div>
-            <p class="text-gray-500 italic">請等待下一場...</p>
+            <p class="text-slate-400 font-bold italic animate-pulse tracking-widest uppercase text-xs">Waiting for next match...</p>
         </div>
         
         <!-- Voter Team Selection (Modal) -->
-        <div id="team-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-6 z-50">
-            <div class="bg-white p-8 rounded-2xl max-w-sm w-full text-center">
-                <h2 class="text-2xl font-bold mb-6">你是哪一隊的？</h2>
-                <div class="flex gap-4">
-                    <button onclick="selectVoterTeam('red')" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg">紅隊</button>
-                    <button onclick="selectVoterTeam('white')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-4 rounded-xl font-bold text-lg shadow-lg">白隊</button>
+        <div id="team-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-6 z-50 transition-opacity">
+            <div class="bg-white p-10 rounded-[2.5rem] max-w-sm w-full text-center shadow-2xl border border-slate-100 animate-fade-in">
+                <h2 class="text-3xl font-black text-slate-800 mb-2">歡迎參加</h2>
+                <p class="text-slate-400 mb-8 font-medium">請選擇您的所屬分組以繼續投票</p>
+                <div class="grid grid-cols-1 gap-4">
+                    <button onclick="selectVoterTeam('A')" class="bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-black text-xl shadow-lg shadow-blue-100 transition-all active:scale-95">我是 A 隊</button>
+                    <button onclick="selectVoterTeam('B')" class="bg-white hover:bg-slate-50 text-slate-700 py-5 rounded-2xl font-black text-xl shadow-lg border border-slate-200 transition-all active:scale-95">我是 B 隊</button>
                 </div>
             </div>
         </div>
@@ -112,13 +132,13 @@
         };
 
         // Listen to system state
-        onSnapshot(doc(db, "system", "current"), (doc) => {
-            if (!doc.exists()) return;
-            const data = doc.data();
+        onSnapshot(doc(db, "system", "current"), (docSnap) => {
+            if (!docSnap.exists()) return;
+            const data = docSnap.data();
             
             // Check for system reset
             if (lastSystemId && data.system_id !== lastSystemId) {
-                localStorage.removeItem('voted_' + currentMatchId);
+                localStorage.clear(); // 清除所有投票狀態
                 location.reload();
             }
             lastSystemId = data.system_id;
@@ -132,7 +152,8 @@
             
             if (data.status === 'voting') {
                 document.getElementById('view-voting').classList.remove('hidden');
-                document.getElementById('status-text').innerText = `第 ${data.round_number} 回合進行中`;
+                document.getElementById('status-text').innerText = `ROUND ${data.round_number} 進行中`;
+                document.getElementById('status-text').className = "text-xs font-black bg-blue-600 px-4 py-1 rounded-full text-white shadow-lg shadow-blue-100 inline-block tracking-widest";
                 
                 document.getElementById('img-A').src = data.match_A.image_url;
                 document.getElementById('img-B').src = data.match_B.image_url;
@@ -146,24 +167,34 @@
                 }
             } else if (data.status === 'result') {
                 document.getElementById('view-result').classList.remove('hidden');
-                document.getElementById('status-text').innerText = "回合結束";
+                document.getElementById('status-text').innerText = "本回合已結束";
+                document.getElementById('status-text').className = "text-xs font-black bg-slate-800 px-4 py-1 rounded-full text-white inline-block tracking-widest";
                 
                 const res = data.last_result;
-                const winnerText = res.winner === 'A' ? "紅隊獲勝！" : "白隊獲勝！";
+                const winnerLabel = res.winner === 'A' ? "作品 A" : "作品 B";
                 document.getElementById('result-detail').innerHTML = `
-                    <p class="font-bold text-xl mb-2">${winnerText}</p>
-                    <p class="text-sm">得票數：紅隊 ${res.votes.A} vs 白隊 ${res.votes.B}</p>
+                    <div class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Winner</div>
+                    <div class="text-3xl font-black text-slate-800 mb-4">${winnerLabel} 獲勝！</div>
+                    <div class="flex justify-center gap-4 text-sm font-bold">
+                        <span class="text-blue-600">A: ${res.votes.A} 票</span>
+                        <span class="text-slate-200">|</span>
+                        <span class="text-indigo-600">B: ${res.votes.B} 票</span>
+                    </div>
                 `;
-                document.getElementById('winner-emoji').innerText = res.winner === 'A' ? '🔴' : '⚪';
+                document.getElementById('winner-emoji').innerText = '🎉';
             } else {
                 document.getElementById('view-waiting').classList.remove('hidden');
-                document.getElementById('status-text').innerText = "等待對決...";
+                document.getElementById('status-text').innerText = "等待對決中";
+                document.getElementById('status-text').className = "text-xs font-bold bg-white px-4 py-1 rounded-full text-slate-300 shadow-sm border border-slate-100 inline-block tracking-widest";
             }
         }
 
         window.vote = async (choice) => {
             if (hasVoted) {
-                alert("你已經投過票囉！");
+                // 已投票的視覺反饋
+                const card = document.getElementById('card-' + choice);
+                card.classList.add('shake');
+                setTimeout(() => card.classList.remove('shake'), 500);
                 return;
             }
             if (!currentMatchId) return;
@@ -180,12 +211,9 @@
                 hasVoted = true;
                 localStorage.setItem('voted_' + currentMatchId, choice);
                 updateCardSelection();
-                
-                // Visual feedback
-                alert("投票成功！");
             } catch (e) {
                 console.error("Vote error:", e);
-                alert("投票失敗，請再試一次。");
+                alert("投票失敗，請檢查網路連線。");
             }
         };
 
@@ -194,12 +222,24 @@
             const cardB = document.getElementById('card-B');
             const selection = localStorage.getItem('voted_' + currentMatchId);
             
-            cardA.classList.remove('ring-4', 'ring-blue-400');
-            cardB.classList.remove('ring-4', 'ring-blue-400');
+            cardA.classList.remove('ring-8', 'ring-blue-500/30', 'border-blue-500');
+            cardB.classList.remove('ring-8', 'ring-indigo-500/30', 'border-indigo-500');
             
-            if (selection === 'A') cardA.classList.add('ring-4', 'ring-blue-400');
-            if (selection === 'B') cardB.classList.add('ring-4', 'ring-blue-400');
+            if (selection === 'A') {
+                cardA.classList.add('ring-8', 'ring-blue-500/30', 'border-blue-500');
+            }
+            if (selection === 'B') {
+                cardB.classList.add('ring-8', 'ring-indigo-500/30', 'border-indigo-500');
+            }
         }
     </script>
+    <style>
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+    </style>
 </body>
 </html>

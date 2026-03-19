@@ -3,96 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>紅白對抗賽 - 管理後台</title>
+    <title>作品競賽擂台 - 管理後台</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body { font-family: 'Noto+Sans+TC', sans-serif; }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen p-8">
-    <div class="max-w-4xl mx-auto">
-        <h1 class="text-4xl font-black text-slate-800 mb-8">紅白對抗賽 控制台 <span class="text-sm font-normal text-slate-400">Firebase v2.0</span></h1>
+<body class="bg-slate-100 min-h-screen">
+    <div class="max-w-[1600px] mx-auto p-6">
+        <header class="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div>
+                <h1 class="text-3xl font-black text-slate-800">競賽擂台 <span class="text-blue-600">控制台</span></h1>
+                <p class="text-slate-400 text-sm mt-1">作品評選系統 Firebase v2.1 • 基於 ELO 積分演算法</p>
+            </div>
+            <div id="badge-status" class="px-6 py-2 rounded-full text-sm font-bold bg-slate-100 text-slate-500 shadow-sm transition-all uppercase tracking-widest">
+                WAITING
+            </div>
+        </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <!-- Left Column: Controls -->
-            <div class="md:col-span-1 space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left Column: Controls (3/12) -->
+            <div class="lg:col-span-3 space-y-6">
                 <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h2 class="text-lg font-bold mb-4">系統管理</h2>
-                    <button onclick="resetSystem()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 py-3 rounded-xl font-bold transition-colors mb-4">重置系統</button>
-                    <div class="border-t pt-4">
-                        <label class="block text-sm font-medium text-slate-500 mb-2">上傳作品 PDF</label>
-                        <input type="file" id="pdf-file" accept=".pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-2">
-                        <button onclick="uploadPDF()" id="btn-upload" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition-colors">開始匯入</button>
+                    <h2 class="text-lg font-bold mb-4 flex items-center">
+                        <span class="w-2 h-6 bg-blue-500 rounded-full mr-2"></span>系統管理
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase">匯入作品 (PDF)</label>
+                            <input type="file" id="pdf-file" accept=".pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-3 border rounded-xl p-2">
+                            <button onclick="uploadPDF()" id="btn-upload" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg active:scale-95">開始匯入作品</button>
+                        </div>
+                        <div class="pt-4 border-t border-slate-100">
+                            <button onclick="resetSystem()" class="w-full bg-white hover:bg-red-50 text-red-400 hover:text-red-600 py-2 rounded-xl text-sm font-medium transition-colors border border-dashed border-red-200">重置全系統資料</button>
+                        </div>
                     </div>
                 </section>
 
                 <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h2 class="text-lg font-bold mb-4">對戰控制</h2>
-                    <button onclick="startRound()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg mb-4 transition-transform active:scale-95">開始新回合</button>
-                    <button onclick="endRound()" class="w-full bg-amber-500 hover:bg-amber-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition-transform active:scale-95">結束並結算</button>
+                    <h2 class="text-lg font-bold mb-4 flex items-center">
+                        <span class="w-2 h-6 bg-emerald-500 rounded-full mr-2"></span>回合控制
+                    </h2>
+                    <div class="space-y-4">
+                        <button onclick="startRound()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-2xl font-black text-xl shadow-lg shadow-emerald-100 transition-all active:scale-95">開始新回合</button>
+                        <button onclick="endRound()" class="w-full bg-amber-500 hover:bg-amber-600 text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-amber-100 transition-all active:scale-95">結束並結算積分</button>
+                    </div>
                 </section>
             </div>
 
-            <!-- Right Column: Live Data -->
-            <div class="md:col-span-2 space-y-6">
-                <!-- Current Match Status -->
-                <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xl font-bold">即時戰況</h2>
-                        <span id="badge-status" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">WAITING</span>
-                    </div>
-                    
+            <!-- Middle Column: Battle Arena (6/12) -->
+            <div class="lg:col-span-6">
+                <section class="bg-white p-8 rounded-3xl shadow-md border border-slate-200 min-h-[600px] flex flex-col justify-center">
                     <div id="live-voting" class="hidden">
-                        <div class="flex items-center justify-around gap-4 text-center">
+                        <div class="flex items-start justify-around gap-8 text-center">
                             <!-- Match A -->
-                            <div class="flex-1">
-                                <div class="text-4xl font-black text-red-500 mb-1" id="count-A">0</div>
-                                <div class="text-xs text-slate-400">紅隊得票</div>
-                                <div id="label-A" class="mt-2 text-sm font-mono text-slate-500 mb-4"></div>
-                                <div class="relative group">
-                                    <img id="img-A" src="" class="w-full h-48 object-contain bg-slate-50 rounded-lg border border-red-100 p-1">
+                            <div class="flex-1 flex flex-col items-center">
+                                <div class="mb-4">
+                                    <span class="px-4 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-black tracking-widest uppercase">Work A</span>
+                                    <div id="label-A" class="mt-2 text-2xl font-black text-slate-800"></div>
+                                </div>
+                                <div class="w-full aspect-[3/4] max-h-[450px] relative group">
+                                    <img id="img-A" src="" class="w-full h-full object-contain bg-slate-50 rounded-2xl border-2 border-slate-100 p-2 shadow-inner transition-transform group-hover:scale-[1.02]">
+                                </div>
+                                <div class="mt-6">
+                                    <div class="text-6xl font-black text-blue-600 leading-none" id="count-A">0</div>
+                                    <div class="text-sm font-bold text-slate-300 mt-2 tracking-widest uppercase">Votes Recieved</div>
                                 </div>
                             </div>
 
-                            <div class="text-2xl font-black text-slate-300 italic">VS</div>
+                            <div class="self-center">
+                                <div class="text-5xl font-black text-slate-200 italic tracking-tighter">VS</div>
+                            </div>
 
                             <!-- Match B -->
-                            <div class="flex-1">
-                                <div class="text-4xl font-black text-slate-800 mb-1" id="count-B">0</div>
-                                <div class="text-xs text-slate-400">白隊得票</div>
-                                <div id="label-B" class="mt-2 text-sm font-mono text-slate-500 mb-4"></div>
-                                <div class="relative group">
-                                    <img id="img-B" src="" class="w-full h-48 object-contain bg-slate-50 rounded-lg border border-slate-100 p-1">
+                            <div class="flex-1 flex flex-col items-center">
+                                <div class="mb-4">
+                                    <span class="px-4 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-black tracking-widest uppercase">Work B</span>
+                                    <div id="label-B" class="mt-2 text-2xl font-black text-slate-800"></div>
+                                </div>
+                                <div class="w-full aspect-[3/4] max-h-[450px] relative group">
+                                    <img id="img-B" src="" class="w-full h-full object-contain bg-slate-50 rounded-2xl border-2 border-slate-100 p-2 shadow-inner transition-transform group-hover:scale-[1.02]">
+                                </div>
+                                <div class="mt-6">
+                                    <div class="text-6xl font-black text-indigo-600 leading-none" id="count-B">0</div>
+                                    <div class="text-sm font-bold text-slate-300 mt-2 tracking-widest uppercase">Votes Recieved</div>
                                 </div>
                             </div>
                         </div>
+
                         <!-- Progress Bar -->
-                        <div class="mt-8 bg-slate-100 h-4 rounded-full overflow-hidden flex">
-                            <div id="bar-A" class="bg-red-500 transition-all duration-500" style="width: 50%"></div>
-                            <div id="bar-B" class="bg-slate-300 transition-all duration-500" style="width: 50%"></div>
+                        <div class="mt-12">
+                            <div class="flex justify-between text-xs font-bold text-slate-400 mb-2 px-1 tracking-widest uppercase">
+                                <span id="percent-A">50%</span>
+                                <span>即時得票比</span>
+                                <span id="percent-B">50%</span>
+                            </div>
+                            <div class="bg-slate-100 h-4 rounded-full overflow-hidden flex shadow-inner">
+                                <div id="bar-A" class="bg-blue-500 transition-all duration-700 ease-out" style="width: 50%"></div>
+                                <div id="bar-B" class="bg-indigo-400 transition-all duration-700 ease-out" style="width: 50%"></div>
+                            </div>
                         </div>
                     </div>
                     
-                    <div id="live-waiting" class="text-center py-10 text-slate-400 italic">
-                        尚未開始比賽
+                    <div id="live-waiting" class="text-center py-20">
+                        <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">☕</div>
+                        <h3 class="text-2xl font-bold text-slate-300 italic">等待下一回合開始...</h3>
+                        <p class="text-slate-400 mt-2">請點擊左側「開始新回合」進行配對</p>
                     </div>
                 </section>
+            </div>
 
-                <!-- Ranking -->
-                <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h2 class="text-lg font-bold mb-4">積分排行榜 (ELO)</h2>
+            <!-- Right Column: Ranking (3/12) -->
+            <div class="lg:col-span-3">
+                <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 sticky top-6">
+                    <h2 class="text-lg font-bold mb-6 flex items-center">
+                        <span class="w-2 h-6 bg-amber-400 rounded-full mr-2"></span>積分排行榜
+                    </h2>
                     <div class="overflow-hidden">
                         <table class="w-full text-left">
                             <thead>
-                                <tr class="text-xs text-slate-400 border-b">
-                                    <th class="pb-2 font-medium">排名</th>
-                                    <th class="pb-2 font-medium">作品 ID</th>
-                                    <th class="pb-2 font-medium">隊伍</th>
-                                    <th class="pb-2 font-medium">積分</th>
-                                    <th class="pb-2 font-medium">勝率</th>
+                                <tr class="text-[10px] text-slate-400 border-b uppercase tracking-tighter">
+                                    <th class="pb-3 font-bold">Rank</th>
+                                    <th class="pb-3 font-bold">ID</th>
+                                    <th class="pb-3 font-bold text-right">ELO</th>
+                                    <th class="pb-3 font-bold text-right">勝率</th>
                                 </tr>
                             </thead>
                             <tbody id="ranking-list" class="text-sm">
                                 <!-- JS items here -->
                             </tbody>
                         </table>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-slate-50 text-center">
+                        <p class="text-[10px] text-slate-300 font-bold tracking-widest">REAL-TIME UPDATE</p>
                     </div>
                 </section>
             </div>
@@ -101,7 +145,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, onSnapshot, collection, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, collection, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDyexSTxp8Y11YQgV15GJgiYXQHZSGvjck",
@@ -115,7 +159,6 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const API_BASE = ""; // 當前 domain
 
         let currentMatchId = null;
 
@@ -126,29 +169,31 @@
             updateUI(data);
         });
 
-        // Listen to ranking
-        onSnapshot(query(collection(db, "works"), orderBy("elo", "desc"), limit(20)), (snapshot) => {
+        // Listen to ranking (Removed team column)
+        onSnapshot(query(collection(db, "works"), orderBy("elo", "desc"), limit(30)), (snapshot) => {
             const list = document.getElementById('ranking-list');
             list.innerHTML = '';
             snapshot.docs.forEach((doc, index) => {
                 const w = doc.data();
                 const winRate = w.match_count > 0 ? Math.round((w.win_count / w.match_count) * 100) : 0;
                 list.innerHTML += `
-                    <tr class="border-b last:border-0">
-                        <td class="py-3 font-bold">${index + 1}</td>
-                        <td class="py-3">${w.id}</td>
-                        <td class="py-3"><span class="${w.team === 'red' ? 'text-red-500' : 'text-slate-400'}">●</span> ${w.team === 'red' ? '紅隊' : '白隊'}</td>
-                        <td class="py-3 font-mono">${w.elo}</td>
-                        <td class="py-3">${winRate}% <span class="text-xs text-slate-300">(${w.match_count}戰)</span></td>
+                    <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                        <td class="py-3 font-black text-slate-400">${index + 1}</td>
+                        <td class="py-3 font-bold text-slate-700">${w.id}</td>
+                        <td class="py-3 font-mono font-bold text-blue-600 text-right">${w.elo}</td>
+                        <td class="py-3 text-right text-slate-500 font-medium">${winRate}%</td>
                     </tr>
                 `;
             });
         });
 
         // Listen to live votes
+        let unsubscribeVotes = null;
         function listenToVotes(matchId) {
+            if (unsubscribeVotes) unsubscribeVotes();
+            
             const q = query(collection(db, "votes"), where("match_id", "==", matchId));
-            onSnapshot(q, (snapshot) => {
+            unsubscribeVotes = onSnapshot(q, (snapshot) => {
                 let votesA = 0;
                 let votesB = 0;
                 snapshot.docs.forEach(doc => {
@@ -160,11 +205,13 @@
                 document.getElementById('count-B').innerText = votesB;
                 
                 const total = votesA + votesB;
-                const percentA = total > 0 ? (votesA / total) * 100 : 50;
-                const percentB = total > 0 ? (votesB / total) * 100 : 50;
+                const percentA = total > 0 ? Math.round((votesA / total) * 100) : 50;
+                const percentB = total > 0 ? Math.round((votesB / total) * 100) : 50;
                 
                 document.getElementById('bar-A').style.width = percentA + '%';
                 document.getElementById('bar-B').style.width = percentB + '%';
+                document.getElementById('percent-A').innerText = percentA + '%';
+                document.getElementById('percent-B').innerText = percentB + '%';
             });
         }
 
@@ -182,7 +229,7 @@
                 document.getElementById('img-A').src = data.match_A.image_url;
                 document.getElementById('img-B').src = data.match_B.image_url;
                 
-                badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600";
+                badge.className = "px-6 py-2 rounded-full text-sm font-black bg-emerald-500 text-white shadow-lg shadow-emerald-100 tracking-widest uppercase";
                 
                 if (currentMatchId !== data.match_id) {
                     currentMatchId = data.match_id;
@@ -191,7 +238,7 @@
             } else {
                 document.getElementById('live-voting').classList.add('hidden');
                 document.getElementById('live-waiting').classList.remove('hidden');
-                badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500";
+                badge.className = "px-6 py-2 rounded-full text-sm font-bold bg-slate-100 text-slate-400 shadow-sm tracking-widest uppercase";
             }
         }
 
@@ -209,7 +256,7 @@
             
             const btn = document.getElementById('btn-upload');
             btn.disabled = true;
-            btn.innerText = "上傳中...";
+            btn.innerText = "正在處理中...";
             
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
@@ -218,19 +265,17 @@
                 const res = await fetch('/admin/upload_pdf', { method: 'POST', body: formData });
                 const data = await res.json();
                 
-                if (res.ok && data.status === 'success' && typeof data.count !== 'undefined') {
-                    alert(`上傳成功！共 ${data.count} 個作品`);
+                if (res.ok && data.status === 'success') {
+                    alert(`上傳成功！共匯入 ${data.count} 個作品`);
                 } else {
-                    console.error("Server Response Error:", data);
-                    const errorMsg = data.detail || data.message || JSON.stringify(data);
+                    const errorMsg = data.detail || data.message || "發生未知錯誤";
                     alert(`上傳失敗: ${errorMsg}`);
                 }
             } catch (e) {
-                console.error("Upload process crash:", e);
-                alert("上傳過程中發生錯誤（可能是檔案過大或連線中斷）");
+                alert("上傳過程中發生錯誤，請檢查網路連線或檔案大小");
             } finally {
                 btn.disabled = false;
-                btn.innerText = "開始匯入";
+                btn.innerText = "開始匯入作品";
             }
         };
 

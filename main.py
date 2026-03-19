@@ -133,18 +133,15 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 @app.post("/admin/start_round")
 async def start_round():
-    """開始新回合：隨機抽出紅隊與白隊作品"""
+    """開始新回合：隨機抽出兩個作品進行對決"""
     try:
         works = firebase_manager.get_all_works()
-        red_works = [w for w in works if w['team'] == 'red']
-        white_works = [w for w in works if w['team'] == 'white']
         
-        if not red_works or not white_works:
-            raise HTTPException(status_code=400, detail="Not enough works in both teams")
+        if len(works) < 2:
+            raise HTTPException(status_code=400, detail="作品數量不足，無法開始回合")
         
-        # 隨機挑選 (可以加入權重邏輯，例如挑選比賽次數較少的)
-        work_a = random.choice(red_works)
-        work_b = random.choice(white_works)
+        # 隨機挑選兩個不同的作品 (擂台模式，不分隊伍)
+        work_a, work_b = random.sample(works, 2)
         
         state = firebase_manager.get_system_state()
         new_round_number = state.get('round_number', 0) + 1
