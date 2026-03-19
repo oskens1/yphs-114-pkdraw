@@ -202,9 +202,19 @@
             try {
                 const res = await fetch('/admin/upload_pdf', { method: 'POST', body: formData });
                 const data = await res.json();
-                alert(`上傳成功！共 ${data.count} 個作品`);
+                
+                // 更嚴謹的成功判斷：HTTP 200 且回傳中有 count 屬性
+                if (res.ok && data.status === 'success' && typeof data.count !== 'undefined') {
+                    alert(`上傳成功！共 ${data.count} 個作品`);
+                } else {
+                    // 如果 res.ok 為 false，data 通常會包含 FastAPI 的 detail 欄位
+                    console.error("Server Response Error:", data);
+                    const errorMsg = data.detail || data.message || JSON.stringify(data);
+                    alert(`上傳失敗: ${errorMsg}`);
+                }
             } catch (e) {
-                alert("上傳失敗");
+                console.error("Upload process crash:", e);
+                alert("上傳過程中發生錯誤（可能是檔案過大或連線中斷）");
             } finally {
                 btn.disabled = false;
                 btn.innerText = "開始匯入";

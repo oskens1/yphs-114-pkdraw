@@ -82,33 +82,53 @@ async def reset_system():
 async def upload_pdf(file: UploadFile = File(...)):
     """上傳 PDF，切割圖片，上傳 Cloudinary 並存入 Firebase"""
     try:
+        print(f"Received upload request for file: {file.filename}")
+        
         # 1. 保存 PDF
         pdf_path = os.path.join(UPLOAD_DIR, file.filename)
+        print(f"Saving PDF to: {pdf_path}")
         with open(pdf_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
         # 2. 處理 PDF (切割圖片)
+        print(f"Starting PDF processing...")
         work_items = process_pdf(pdf_path, IMAGE_DIR)
+        print(f"Generated {len(work_items)} image items.")
         
+        if not work_items:
+            raise Exception("PDF 處理失敗或檔案無內容，未生成任何圖片。")
+            
         # 3. 上傳 Cloudinary 並更新 Firebase
         final_works = []
         for item in work_items:
             # 上傳到 Cloudinary
             public_id = f"work_{item.id}_{uuid.uuid4().hex[:6]}"
+            print(f"Uploading image for item {item.id} to Cloudinary...")
             cloud_url = cloudinary_mgr.upload_image(item.image_url, public_id)
             
             if cloud_url:
                 item.image_url = cloud_url
                 # 存入 Firebase
+                print(f"Adding item {item.id} to Firebase...")
                 firebase_manager.add_work(item.to_dict())
                 final_works.append(item.to_dict())
+            else:
+                print(f"Warning: Cloudinary upload failed for item {item.id}")
         
+        print(f"Upload process finished. Total works successfully processed: {len(final_works)}")
+        
+        if len(final_works) == 0:
+             raise Exception("雖然 PDF 已切割，但所有圖片上傳至 Cloudinary 皆失敗，請檢查 Cloudinary 設定。")
+
         # 更新系統狀態為 ready
         firebase_manager.update_system_state({"status": "ready", "total_works": len(final_works)})
         
         return {"status": "success", "count": len(final_works)}
     except Exception as e:
-        print(f"Upload error: {e}")
+        print(f"Detailed Upload Error: {e}")
+        import traceback
+        traceback.print_exc()
+        # 回傳更具體的錯誤訊息給前端
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/admin/start_round")
