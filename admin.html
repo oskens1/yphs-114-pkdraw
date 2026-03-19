@@ -41,16 +41,26 @@
                     
                     <div id="live-voting" class="hidden">
                         <div class="flex items-center justify-around gap-4 text-center">
+                            <!-- Match A -->
                             <div class="flex-1">
                                 <div class="text-4xl font-black text-red-500 mb-1" id="count-A">0</div>
                                 <div class="text-xs text-slate-400">紅隊得票</div>
-                                <div id="label-A" class="mt-2 text-sm font-mono text-slate-500"></div>
+                                <div id="label-A" class="mt-2 text-sm font-mono text-slate-500 mb-4"></div>
+                                <div class="relative group">
+                                    <img id="img-A" src="" class="w-full h-48 object-contain bg-slate-50 rounded-lg border border-red-100 p-1">
+                                </div>
                             </div>
+
                             <div class="text-2xl font-black text-slate-300 italic">VS</div>
+
+                            <!-- Match B -->
                             <div class="flex-1">
                                 <div class="text-4xl font-black text-slate-800 mb-1" id="count-B">0</div>
                                 <div class="text-xs text-slate-400">白隊得票</div>
-                                <div id="label-B" class="mt-2 text-sm font-mono text-slate-500"></div>
+                                <div id="label-B" class="mt-2 text-sm font-mono text-slate-500 mb-4"></div>
+                                <div class="relative group">
+                                    <img id="img-B" src="" class="w-full h-48 object-contain bg-slate-50 rounded-lg border border-slate-100 p-1">
+                                </div>
                             </div>
                         </div>
                         <!-- Progress Bar -->
@@ -167,6 +177,11 @@
                 document.getElementById('live-waiting').classList.add('hidden');
                 document.getElementById('label-A').innerText = data.match_A.id;
                 document.getElementById('label-B').innerText = data.match_B.id;
+                
+                // 顯示圖片
+                document.getElementById('img-A').src = data.match_A.image_url;
+                document.getElementById('img-B').src = data.match_B.image_url;
+                
                 badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600";
                 
                 if (currentMatchId !== data.match_id) {
@@ -203,11 +218,9 @@
                 const res = await fetch('/admin/upload_pdf', { method: 'POST', body: formData });
                 const data = await res.json();
                 
-                // 更嚴謹的成功判斷：HTTP 200 且回傳中有 count 屬性
                 if (res.ok && data.status === 'success' && typeof data.count !== 'undefined') {
                     alert(`上傳成功！共 ${data.count} 個作品`);
                 } else {
-                    // 如果 res.ok 為 false，data 通常會包含 FastAPI 的 detail 欄位
                     console.error("Server Response Error:", data);
                     const errorMsg = data.detail || data.message || JSON.stringify(data);
                     alert(`上傳失敗: ${errorMsg}`);
