@@ -1,12 +1,7 @@
 fastapi
 uvicorn
-jinja2
+firebase-admin
 python-multipart
-pandas
-openpyxl
-pymupdf
-gspread
-google-auth
 cloudinary
-Pillow
+pillow
 python-dotenv

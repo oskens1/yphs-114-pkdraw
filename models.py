@@ -31,7 +31,7 @@ class EloManager:
         new_elo_a = elo_a + change_a
         new_elo_b = elo_b + change_b
 
-        return round(new_elo_a), round(new_elo_b)
+        return int(round(new_elo_a)), int(round(new_elo_b))
 
 class WorkItem:
     def __init__(self, id, image_url, elo=1500, match_count=0, win_count=0, team="red"):

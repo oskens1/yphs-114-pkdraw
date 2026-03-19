@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>紅白對抗賽 - 管理後台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-black text-slate-800 mb-8">紅白對抗賽 控制台 <span class="text-sm font-normal text-slate-400">Firebase v2.0</span></h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Left Column: Controls -->
+            <div class="md:col-span-1 space-y-6">
+                <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-bold mb-4">系統管理</h2>
+                    <button onclick="resetSystem()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 py-3 rounded-xl font-bold transition-colors mb-4">重置系統</button>
+                    <div class="border-t pt-4">
+                        <label class="block text-sm font-medium text-slate-500 mb-2">上傳作品 PDF</label>
+                        <input type="file" id="pdf-file" accept=".pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-2">
+                        <button onclick="uploadPDF()" id="btn-upload" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition-colors">開始匯入</button>
+                    </div>
+                </section>
+
+                <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-bold mb-4">對戰控制</h2>
+                    <button onclick="startRound()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg mb-4 transition-transform active:scale-95">開始新回合</button>
+                    <button onclick="endRound()" class="w-full bg-amber-500 hover:bg-amber-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition-transform active:scale-95">結束並結算</button>
+                </section>
+            </div>
+
+            <!-- Right Column: Live Data -->
+            <div class="md:col-span-2 space-y-6">
+                <!-- Current Match Status -->
+                <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold">即時戰況</h2>
+                        <span id="badge-status" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">WAITING</span>
+                    </div>
+                    
+                    <div id="live-voting" class="hidden">
+                        <div class="flex items-center justify-around gap-4 text-center">
+                            <div class="flex-1">
+                                <div class="text-4xl font-black text-red-500 mb-1" id="count-A">0</div>
+                                <div class="text-xs text-slate-400">紅隊得票</div>
+                                <div id="label-A" class="mt-2 text-sm font-mono text-slate-500"></div>
+                            </div>
+                            <div class="text-2xl font-black text-slate-300 italic">VS</div>
+                            <div class="flex-1">
+                                <div class="text-4xl font-black text-slate-800 mb-1" id="count-B">0</div>
+                                <div class="text-xs text-slate-400">白隊得票</div>
+                                <div id="label-B" class="mt-2 text-sm font-mono text-slate-500"></div>
+                            </div>
+                        </div>
+                        <!-- Progress Bar -->
+                        <div class="mt-8 bg-slate-100 h-4 rounded-full overflow-hidden flex">
+                            <div id="bar-A" class="bg-red-500 transition-all duration-500" style="width: 50%"></div>
+                            <div id="bar-B" class="bg-slate-300 transition-all duration-500" style="width: 50%"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="live-waiting" class="text-center py-10 text-slate-400 italic">
+                        尚未開始比賽
+                    </div>
+                </section>
+
+                <!-- Ranking -->
+                <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-bold mb-4">積分排行榜 (ELO)</h2>
+                    <div class="overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-xs text-slate-400 border-b">
+                                    <th class="pb-2 font-medium">排名</th>
+                                    <th class="pb-2 font-medium">作品 ID</th>
+                                    <th class="pb-2 font-medium">隊伍</th>
+                                    <th class="pb-2 font-medium">積分</th>
+                                    <th class="pb-2 font-medium">勝率</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ranking-list" class="text-sm">
+                                <!-- JS items here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, collection, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDyexSTxp8Y11YQgV15GJgiYXQHZSGvjck",
+            authDomain: "pk-draw.firebaseapp.com",
+            projectId: "pk-draw",
+            storageBucket: "pk-draw.firebasestorage.app",
+            messagingSenderId: "890179467084",
+            appId: "1:890179467084:web:50359ea62a77458d7541e9",
+            measurementId: "G-Q76ZV2BCEP"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const API_BASE = ""; // 當前 domain
+
+        let currentMatchId = null;
+
+        // Listen to system state
+        onSnapshot(doc(db, "system", "current"), (doc) => {
+            if (!doc.exists()) return;
+            const data = doc.data();
+            updateUI(data);
+        });
+
+        // Listen to ranking
+        onSnapshot(query(collection(db, "works"), orderBy("elo", "desc"), limit(20)), (snapshot) => {
+            const list = document.getElementById('ranking-list');
+            list.innerHTML = '';
+            snapshot.docs.forEach((doc, index) => {
+                const w = doc.data();
+                const winRate = w.match_count > 0 ? Math.round((w.win_count / w.match_count) * 100) : 0;
+                list.innerHTML += `
+                    <tr class="border-b last:border-0">
+                        <td class="py-3 font-bold">${index + 1}</td>
+                        <td class="py-3">${w.id}</td>
+                        <td class="py-3"><span class="${w.team === 'red' ? 'text-red-500' : 'text-slate-400'}">●</span> ${w.team === 'red' ? '紅隊' : '白隊'}</td>
+                        <td class="py-3 font-mono">${w.elo}</td>
+                        <td class="py-3">${winRate}% <span class="text-xs text-slate-300">(${w.match_count}戰)</span></td>
+                    </tr>
+                `;
+            });
+        });
+
+        // Listen to live votes
+        function listenToVotes(matchId) {
+            const q = query(collection(db, "votes"), where("match_id", "==", matchId));
+            onSnapshot(q, (snapshot) => {
+                let votesA = 0;
+                let votesB = 0;
+                snapshot.docs.forEach(doc => {
+                    if (doc.data().choice === 'A') votesA++;
+                    else votesB++;
+                });
+                
+                document.getElementById('count-A').innerText = votesA;
+                document.getElementById('count-B').innerText = votesB;
+                
+                const total = votesA + votesB;
+                const percentA = total > 0 ? (votesA / total) * 100 : 50;
+                const percentB = total > 0 ? (votesB / total) * 100 : 50;
+                
+                document.getElementById('bar-A').style.width = percentA + '%';
+                document.getElementById('bar-B').style.width = percentB + '%';
+            });
+        }
+
+        function updateUI(data) {
+            const badge = document.getElementById('badge-status');
+            badge.innerText = data.status.toUpperCase();
+            
+            if (data.status === 'voting') {
+                document.getElementById('live-voting').classList.remove('hidden');
+                document.getElementById('live-waiting').classList.add('hidden');
+                document.getElementById('label-A').innerText = data.match_A.id;
+                document.getElementById('label-B').innerText = data.match_B.id;
+                badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600";
+                
+                if (currentMatchId !== data.match_id) {
+                    currentMatchId = data.match_id;
+                    listenToVotes(currentMatchId);
+                }
+            } else {
+                document.getElementById('live-voting').classList.add('hidden');
+                document.getElementById('live-waiting').classList.remove('hidden');
+                badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500";
+            }
+        }
+
+        // Admin Functions
+        window.resetSystem = async () => {
+            if (!confirm("確定要重置整個系統嗎？所有資料將消失！")) return;
+            const res = await fetch('/admin/reset', { method: 'POST' });
+            const data = await res.json();
+            alert(data.message);
+        };
+
+        window.uploadPDF = async () => {
+            const fileInput = document.getElementById('pdf-file');
+            if (fileInput.files.length === 0) return alert("請選擇檔案");
+            
+            const btn = document.getElementById('btn-upload');
+            btn.disabled = true;
+            btn.innerText = "上傳中...";
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            try {
+                const res = await fetch('/admin/upload_pdf', { method: 'POST', body: formData });
+                const data = await res.json();
+                alert(`上傳成功！共 ${data.count} 個作品`);
+            } catch (e) {
+                alert("上傳失敗");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "開始匯入";
+            }
+        };
+
+        window.startRound = async () => {
+            const res = await fetch('/admin/start_round', { method: 'POST' });
+            const data = await res.json();
+            if (res.status !== 200) alert(data.detail);
+        };
+
+        window.endRound = async () => {
+            const res = await fetch('/admin/end_round', { method: 'POST' });
+            const data = await res.json();
+            if (res.status !== 200) alert(data.detail);
+        };
+    </script>
+</body>
+</html>

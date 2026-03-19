@@ -1,10 +1,2 @@
-venv/
-__pycache__/
-*.pyc
-data/*.json
-data/*.xlsx
-uploads/
-.env
-.vscode/
-gen-lang-client-*.json  
-學生名單.xls  
+firebase_version/*.json  
+*.json  
